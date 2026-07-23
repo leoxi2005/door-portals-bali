@@ -1,6 +1,6 @@
 {
   "name": "door-portals",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "DOOR PORTALS — LiDAR touch-wall interactive: 3 cửa thần kỳ mở ra thế giới khác. Electron + Three.js, NDI Out, OSC In.",
   "main": "main.js",
   "author": "LEOXI",
@@ -14,7 +14,8 @@
   "build": {
     "appId": "com.leoxi.doorportals",
     "productName": "Door Portals",
-    "directories": { "output": "release" },
+    "directories": { "output": "release", "buildResources": "build" },
+    "icon": "build/icon.png",
     "files": [
       "main.js",
       "preload.js",
@@ -35,9 +36,11 @@
     ],
     "mac": {
       "category": "public.app-category.graphics-design",
+      "icon": "build/icon.png",
       "target": ["dmg", "zip"]
     },
     "win": {
+      "icon": "build/icon.png",
       "target": ["nsis", "zip"]
     }
   },
