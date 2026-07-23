@@ -168,6 +168,29 @@ Gửi OSC bằng bất kỳ công cụ nào (hoặc script) tới `127.0.0.1:700
 
 Rồi bấm **O** trong app để xem gói có tới đúng không, **Shift+M** để đối chiếu cửa ↔ địa chỉ.
 
+### Làm sao biết zone bên Bridge KHỚP với cửa trong app?
+
+**App Door không biết gì về vị trí vật lý** — nó chỉ nhận một *chuỗi địa chỉ OSC* rồi mở đúng cửa được gán cho địa chỉ đó. Sợi dây duy nhất nối 2 app là **cái tên địa chỉ**, nên phải **tự quy ước ở bridge cho đúng** rồi **kiểm chứng bằng mắt**.
+
+**Quy ước cửa trong app:** `cua M` = cửa thứ M của tường (theo thứ tự trong `config.json → walls[].doors`). `cua1` là cửa ở **đầu tường có toạ độ nhỏ hơn** = **bên trái trong khung panorama**. Ví dụ tường 2 có `doors: [0.3, 0.7]` → `cua1` = cửa ở 30% (trái), `cua2` = cửa ở 70% (phải).
+
+**Các bước căn chỉnh tại chỗ:**
+1. Bấm **Shift+M** → bản đồ hiện mỗi cửa **kèm địa chỉ OSC của nó**, và **nháy** khi nhận tín hiệu.
+2. Bấm **O** → log từng gói + dòng "cửa vừa xử lý".
+3. **Chạm/che thử từng ô cửa vật lý MỘT** rồi nhìn app:
+   - Cửa nháy **đúng** ô vừa chạm → **khớp** ✅
+   - Cửa nháy **sai** ô → bridge gán zone lệch → sửa như dưới.
+
+**Khi lệch:**
+
+| Triệu chứng | Nguyên nhân | Cách sửa |
+|-------------|-------------|----------|
+| Chạm cửa trái, app mở cửa phải (cùng tường) | `cua1`/`cua2` bị hoán | Đổi `cua1`↔`cua2` cho tường đó **ở bridge** |
+| Chạm tường này, app mở tường khác | Đánh số tường không đồng bộ | Cho **bridge `tuongN` = app wall N = NDI `DOOR-WALL-N` = tường vật lý** khớp nhau (chỉnh ở bridge hoặc MadMapper) |
+| Không đổi được tên ở bridge | Địa chỉ cố định | Ánh xạ tay bằng `config.json → osc.zones` (địa chỉ → chỉ số cửa 1..9) |
+
+> Nói cách khác: **3 thứ phải cùng đánh số một tường** — bridge, app, và nguồn NDI trong MadMapper. Cứ chạm thử từng cửa và đối chiếu bằng **Shift+M** cho tới khi mọi ô nháy đúng vị trí.
+
 ### Tùy chọn liên quan (`config.json → osc`)
 
 | Khoá | Ý nghĩa |
