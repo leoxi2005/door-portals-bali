@@ -65,6 +65,69 @@ Giá trị:  1  = đang chạm  → MỞ cửa (giữ mở khi còn chạm)
 - Gửi **`1`** khi bắt đầu có người ở zone, gửi **`0`** khi người rời đi. **Không cần gửi liên tục** — chỉ cần gửi 1 lần khi trạng thái đổi (gửi lặp lại cũng không sao, cửa không bị toggle).
 - App tự khớp địa chỉ → cửa bằng luật `osc.zoneRule` = `^/tuong(\d+)/zone/cua(\d+)$`.
 
+#### Ví dụ 1 — kịch bản thực tế (một người chạm cửa 1 của tường 2)
+
+```
+# Khách bước tới, tay chạm ô cửa 1 trên tường 2:
+/tuong2/zone/cua1   1      ← cửa mở, bắt đầu chiếu clip
+
+#  ... khách giữ tay xem (KHÔNG cần gửi gì thêm, cửa vẫn mở) ...
+
+# Khách buông tay / rời đi:
+/tuong2/zone/cua1   0      ← cửa đóng ngay
+
+# Cùng lúc, người khác chạm cửa 2 của tường 3 → độc lập hoàn toàn:
+/tuong3/zone/cua2   1
+/tuong3/zone/cua2   0
+```
+
+> Chỉ gửi khi **đổi trạng thái** (vào zone → `1`, rời zone → `0`). Không cần bắn liên tục. Nếu sợ mất gói `0`, cứ gửi lặp `0` vài lần cũng được — cửa không bị mở lại.
+
+#### Ví dụ 2 — code bridge gửi OSC (Python, thư viện `python-osc`)
+
+```python
+from pythonosc.udp_client import SimpleUDPClient
+
+DOOR_APP_IP = "192.168.1.50"   # IP máy chạy Door Portals
+client = SimpleUDPClient(DOOR_APP_IP, 7000)
+
+# khi zone (tường 2, cửa 1) có người:
+client.send_message("/tuong2/zone/cua1", 1)   # int → mở
+
+# khi zone hết người:
+client.send_message("/tuong2/zone/cua1", 0)   # int → đóng
+```
+
+Gói vào/ra chung một hàm cho gọn:
+
+```python
+def send_zone(wall, door, active):
+    client.send_message(f"/tuong{wall}/zone/cua{door}", 1 if active else 0)
+
+send_zone(2, 1, True)    # người vào  → /tuong2/zone/cua1  1
+send_zone(2, 1, False)   # người rời  → /tuong2/zone/cua1  0
+```
+
+#### Ví dụ 3 — code bridge gửi OSC (Node.js, thư viện `osc`)
+
+```js
+const osc = require("osc");
+const udp = new osc.UDPPort({ remoteAddress: "192.168.1.50", remotePort: 7000 });
+udp.open();
+
+function sendZone(wall, door, active) {
+  udp.send({
+    address: `/tuong${wall}/zone/cua${door}`,
+    args: [{ type: "i", value: active ? 1 : 0 }],   // type "i" = int32 (bắt buộc)
+  });
+}
+
+sendZone(2, 1, true);    // mở cửa 1 tường 2
+sendZone(2, 1, false);   // đóng
+```
+
+> ⚠️ Giá trị **phải là int** (`type "i"` / `int32`), không phải float. App đọc `args[0] >= 1` → mở.
+
 ### Bản đồ Tường ↔ Cửa ↔ Địa chỉ OSC ↔ Luồng NDI
 
 Theo `config.json` hiện tại (5 tường cao 220 cm, tổng 9 cửa):
