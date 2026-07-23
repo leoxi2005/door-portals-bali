@@ -16,7 +16,9 @@ Vào tab **[Releases](../../releases)** rồi tải bản mới nhất:
 App chưa ký (unsigned) → lần đầu mở: **chuột phải vào app → Open → Open**, hoặc *System Settings → Privacy & Security → Open Anyway*.
 
 ### Windows
-Chạy file `Setup .exe` để cài. Cần **NDI Runtime** để phát được luồng NDI ra MadMapper.
+Chạy file `Setup .exe` để cài rồi mở như app bình thường — **không cần cài gì thêm** để xem.
+
+> **NDI Runtime là tùy chọn**, chỉ cần trên **máy show thật** khi muốn xuất 5 luồng NDI ra MadMapper để chiếu lên tường. Không có NDI thì app vẫn mở và render đầy đủ, chỉ là không phát luồng NDI ra ngoài.
 
 ## Chạy từ source (dev)
 
