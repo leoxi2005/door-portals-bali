@@ -50,6 +50,23 @@ export function initDebugOverlays({ gl, camera, walls, doors, H, osc }) {
     doorInfo.set(d, { wi, dj, addr: `/tuong${wi + 1}/zone/cua${dj + 1}` });
   }));
 
+  // Zones defined by the LiDAR bridge, streamed in over OSC (/zonecal/…). Each is
+  // a rectangle in WALL-LOCAL fractions (0..1 along the wall, 0..1 up its height),
+  // so it drops straight into the same world space as the door hit-zones — you can
+  // literally see whether a bridge zone sits over the door it claims to trigger.
+  const bridgeZones = new Map(); // "wi-dj" -> { wi, dj, fx0, fx1, fy0, fy1, addr, t }
+  function setBridgeZone(wallN, doorM, fx0, fx1, fy0, fy1) {
+    const wi = wallN - 1, dj = doorM - 1;
+    bridgeZones.set(`${wi}-${dj}`, {
+      wi, dj,
+      fx0: Math.min(fx0, fx1), fx1: Math.max(fx0, fx1),
+      fy0: (Number.isFinite(fy0) ? fy0 : 0),
+      fy1: (Number.isFinite(fy1) ? fy1 : 1),
+      addr: `/tuong${wallN}/zone/cua${doorM}`,
+      t: performance.now()
+    });
+  }
+
   // ============================================================= SETUP GUIDE
   const guide = document.createElement('div');
   guide.id = 'guide'; guide.className = 'dbg-hidden';
@@ -176,6 +193,34 @@ export function initDebugOverlays({ gl, camera, walls, doors, H, osc }) {
       }
     }
 
+    // bridge-defined zones (from /zonecal/…) drawn over the app's doors so you
+    // can SEE if each physical zone lines up with the door it should trigger.
+    for (const z of bridgeZones.values()) {
+      const w = walls[z.wi];
+      if (!w) continue;
+      const bx0 = w.x0 + z.fx0 * w.wm, bx1 = w.x0 + z.fx1 * w.wm;
+      const by0 = z.fy0 * H, by1 = z.fy1 * H;
+      const p0 = toScreen(bx0, by1, 0.02), p1 = toScreen(bx1, by0, 0.02);
+      const x = Math.min(p0[0], p1[0]), y = Math.min(p0[1], p1[1]);
+      const wpx = Math.abs(p1[0] - p0[0]), hpx = Math.abs(p1[1] - p0[1]);
+      // does the zone actually overlap the door it names?
+      const door = w.doors && w.doors[z.dj];
+      let ok = false;
+      if (door) {
+        const h = door.hitRect();
+        ok = bx0 < h.x1 && bx1 > h.x0 && by0 < h.y1 && by1 > h.y0;
+      }
+      ctx.save();
+      ctx.setLineDash([7, 5]);
+      ctx.strokeStyle = ok ? 'rgba(90,255,140,0.95)' : 'rgba(255,95,95,0.95)';
+      ctx.lineWidth = 2.5; ctx.strokeRect(x, y, wpx, hpx);
+      ctx.setLineDash([]);
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.font = 'bold 11px "SF Mono", Menlo, monospace';
+      ctx.fillText(`⌁ ${z.addr}${door ? (ok ? ' ✓' : ' ✗ lệch') : ' ✗ không có cửa'}`, x + 4, y + 12);
+      ctx.restore();
+    }
+
     // legacy x,y touch dots
     for (const p of touches) {
       const age = (now - p.t) / 1000; if (age > 2) continue;
@@ -187,6 +232,10 @@ export function initDebugOverlays({ gl, camera, walls, doors, H, osc }) {
     ctx.textAlign = 'left'; ctx.font = '12px "SF Mono", Menlo, monospace';
     ctx.fillStyle = 'rgba(220,235,255,0.9)';
     ctx.fillText('BẢN ĐỒ TƯỜNG & ZONE (Shift+M ẩn) — mỗi tường = 1 luồng NDI · mỗi cửa = 1 địa chỉ OSC', 12, cv.height - 14);
+    if (bridgeZones.size) {
+      ctx.fillStyle = 'rgba(220,235,255,0.7)';
+      ctx.fillText('⌁ khung nét đứt = zone từ bridge  ·  xanh = trùng cửa  ·  đỏ = lệch', 12, cv.height - 30);
+    }
   }
   requestAnimationFrame(draw);
 
@@ -196,5 +245,5 @@ export function initDebugOverlays({ gl, camera, walls, doors, H, osc }) {
     if (e.key === 'M') cv.classList.toggle('dbg-hidden'); // Shift+M (m alone = mute)
   });
 
-  return { logOsc, logTouch, flashZone, noteTrigger };
+  return { logOsc, logTouch, flashZone, noteTrigger, setBridgeZone };
 }

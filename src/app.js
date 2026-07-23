@@ -278,6 +278,10 @@ const normalized = cfg.osc?.normalized ?? true;
 // rule (Wth wall, Dth door). Sub-addresses (…/dwell, …/count) don't match → ignored.
 const zonesMap = cfg.osc?.zones ?? {};
 const zoneRuleRe = cfg.osc?.zoneRule ? new RegExp(cfg.osc.zoneRule) : null;
+// Zone-calibration overlay: the bridge streams each zone's wall-local rectangle
+// (/zonecal/tuongN/cuaM  fx0 fx1 [fy0 fy1]) so the Shift+M map can draw it over
+// the doors — a live "does this zone line up with the door" check.
+const zoneCalRe = /^\/zonecal\/tuong(\d+)\/cua(\d+)$/;
 const zoneCloseOnRelease = cfg.osc?.zoneCloseOnRelease ?? false;
 function resolveZoneDoor(address) {
   if (zonesMap[address]) return doors[zonesMap[address] - 1] || null;
@@ -294,6 +298,14 @@ function resolveZoneDoor(address) {
 window.api.onOsc((msg) => {
   hud.lastOsc = `:${msg.port} ${msg.address} ${msg.args.map(a => typeof a === 'number' ? a.toFixed(3) : a).join(' ')}`;
   dbg.logOsc(msg); // OSC monitor sees EVERY packet, even on the wrong address
+
+  // Zone-calibration geometry from the bridge → draw it on the Shift+M map.
+  const zc = msg.address.match(zoneCalRe);
+  if (zc) {
+    const a = msg.args.map(Number);
+    dbg.setBridgeZone(Number(zc[1]), Number(zc[2]), a[0] ?? 0, a[1] ?? 1, a[2], a[3]);
+    return;
+  }
 
   // Zone touch → open on 1, close on 0 (if zoneCloseOnRelease; else auto-plays out).
   const zoneDoor = resolveZoneDoor(msg.address);

@@ -191,6 +191,38 @@ Rồi bấm **O** trong app để xem gói có tới đúng không, **Shift+M** 
 
 > Nói cách khác: **3 thứ phải cùng đánh số một tường** — bridge, app, và nguồn NDI trong MadMapper. Cứ chạm thử từng cửa và đối chiếu bằng **Shift+M** cho tới khi mọi ô nháy đúng vị trí.
 
+### Xem zone chồng thẳng lên cửa (live overlay, khỏi chạm thử từng cái)
+
+Thay vì chạm tay từng ô, bridge có thể **gửi toạ độ từng zone** sang, app **vẽ đè** lên bản đồ **Shift+M** — khung **nét đứt xanh = zone trùng cửa**, **đỏ = lệch**. Cập nhật realtime khi bạn kéo zone bên bridge.
+
+Bridge gửi thêm (song song với gói `1`/`0` bình thường):
+
+```
+/zonecal/tuongN/cuaM   fx0  fx1  [fy0  fy1]      ← các số FLOAT 0..1
+```
+- `fx0, fx1` = zone trải ngang bao nhiêu **dọc theo tường N** (0 = đầu trái tường, 1 = đầu phải).
+- `fy0, fy1` = phần chiều cao tường (tuỳ chọn; bỏ trống = phủ hết chiều cao).
+- Gửi **1 lần lúc khởi động** hoặc **mỗi khi zone thay đổi** (app giữ giá trị mới nhất). Muốn "live" khi kéo zone thì gửi lặp ~1–2 lần/giây.
+
+**Python (`python-osc`):**
+```python
+# cửa 1 tường 2 nằm quanh 30% chiều rộng tường → zone ~0.20..0.40, cao full
+client.send_message("/zonecal/tuong2/cua1", [0.20, 0.40, 0.0, 1.0])
+client.send_message("/zonecal/tuong2/cua2", [0.60, 0.80, 0.0, 1.0])
+```
+
+**Node.js (`osc`):**
+```js
+udp.send({
+  address: "/zonecal/tuong2/cua1",
+  args: [0.20, 0.40, 0.0, 1.0].map(v => ({ type: "f", value: v })),  // type "f" = float
+});
+```
+
+Sau đó trong app bấm **Shift+M** → thấy khung zone chồng lên cửa: **xanh** là khớp, **đỏ ✗ lệch** thì chỉnh lại `fx0/fx1` (hoặc vị trí zone) bên bridge cho tới khi thành xanh.
+
+> `fx` là **vị trí zone dọc theo tường** chứ không phải toạ độ scan LiDAR — bạn quy đổi ở bridge (biết zone nằm ~bao nhiêu % chiều dài tường). Không cần chính xác tuyệt đối, chỉ cần khung xanh phủ lên ô cửa là đủ để yên tâm đã khớp.
+
 ### Tùy chọn liên quan (`config.json → osc`)
 
 | Khoá | Ý nghĩa |
