@@ -1,0 +1,52 @@
+{
+  "name": "door-portals",
+  "version": "1.0.0",
+  "description": "DOOR PORTALS — LiDAR touch-wall interactive: 3 cửa thần kỳ mở ra thế giới khác. Electron + Three.js, NDI Out, OSC In.",
+  "main": "main.js",
+  "author": "LEOXI",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.leoxi.doorportals",
+    "productName": "Door Portals",
+    "directories": { "output": "release" },
+    "files": [
+      "main.js",
+      "preload.js",
+      "config.json",
+      "index.html",
+      "ndi/**/*",
+      "osc/**/*",
+      "src/**/*",
+      "assets/**/*",
+      "!assets/worlds_backup_orig/**",
+      "!assets/worlds/720-backup/**",
+      "!assets/worlds/door*.mp4",
+      "node_modules/three/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/@stagetimerio/grandiose/**"
+    ],
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "target": ["nsis", "zip"]
+    }
+  },
+  "dependencies": {
+    "@stagetimerio/grandiose": "^0.2.0",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  }
+}

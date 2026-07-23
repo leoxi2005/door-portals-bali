@@ -1,0 +1,22 @@
+# deps & build output
+node_modules/
+release/
+dist/
+
+# local backups / scratch
+.bak-visual/
+*.log
+.DS_Store
+
+# unused video backups (pool clips override these — not needed to run or build)
+assets/worlds_backup_orig/
+assets/worlds/720-backup/
+assets/worlds/door1.mp4
+assets/worlds/door2.mp4
+assets/worlds/door3.mp4
+assets/worlds/door4.mp4
+assets/worlds/door5.mp4
+assets/worlds/door6.mp4
+assets/worlds/door7.mp4
+assets/worlds/door8.mp4
+assets/worlds/door9.mp4

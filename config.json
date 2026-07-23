@@ -1,0 +1,67 @@
+{
+  "output": {
+    "width": 9336,
+    "height": 832,
+    "fps": 30,
+    "renderScale": 1.0
+  },
+  "ndi": {
+    "enabled": true,
+    "name": "DOOR-PORTALS"
+  },
+  "walls": [
+    { "px": 831,  "wcm": 220, "hcm": 220, "oscPort": 9001, "doors": [0.5] },
+    { "px": 2079, "wcm": 550, "hcm": 220, "oscPort": 9002, "doors": [0.3, 0.7] },
+    { "px": 2079, "wcm": 550, "hcm": 220, "oscPort": 9003, "doors": [0.3, 0.7] },
+    { "px": 2003, "wcm": 530, "hcm": 220, "oscPort": 9004, "doors": [0.3, 0.7] },
+    { "px": 2343, "wcm": 620, "hcm": 220, "oscPort": 9005, "doors": [0.3, 0.7] }
+  ],
+  "worlds": [
+    { "video": "assets/worlds/door1.mp4", "palette": "meadow" },
+    { "video": "assets/worlds/door2.mp4", "palette": "sunset" },
+    { "video": "assets/worlds/door3.mp4", "palette": "aurora" },
+    { "video": "assets/worlds/door4.mp4", "palette": "underwater" },
+    { "video": "assets/worlds/door5.mp4", "palette": "sakura" },
+    { "video": "assets/worlds/door6.mp4", "palette": "snow" },
+    { "video": "assets/worlds/door7.mp4", "palette": "desert" },
+    { "video": "assets/worlds/door8.mp4", "palette": "jungle" },
+    { "video": "assets/worlds/door9.mp4", "palette": "cosmos" }
+  ],
+  "audio": {
+    "enabled": true,
+    "volume": 0.8
+  },
+  "osc": {
+    "port": 7000,
+    "zoneRule": "^/tuong(\\d+)/zone/cua(\\d+)$",
+    "zones": {},
+    "zoneCloseOnRelease": true,
+    "address": "/touch",
+    "normalized": true,
+    "flipY": false
+  },
+  "quality": {
+    "dummyDoors": 26,
+    "glowSlabs": 34,
+    "grassBlades": 2600,
+    "fireflies": 420,
+    "petals": 130,
+    "lanterns": 12,
+    "butterflies": 18,
+    "bloomStrength": 0.42,
+    "bloomRadius": 0.34,
+    "bloomThreshold": 0.82,
+    "stars": 240,
+    "maxFps": 60
+  },
+  "timing": {
+    "openDuration": 1.2,
+    "overlayFadeIn": 0.9,
+    "overlayHold": 10.0,
+    "overlayMaxHold": 60.0,
+    "overlayFadeOut": 1.2,
+    "closeDuration": 1.0,
+    "cooldown": 1.5,
+    "teaseInterval": 40
+  }
+}
