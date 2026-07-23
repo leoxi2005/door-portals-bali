@@ -14,13 +14,18 @@ permissions:
 
 jobs:
   windows:
-    runs-on: windows-latest
+    # Pin to windows-2022 (Visual Studio 2022). windows-latest ships VS 2026 (v18)
+    # which grandiose's bundled node-gyp 9.4.1 can't detect → native build fails.
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      - name: Select Visual Studio 2022 for node-gyp
+        run: npm config set msvs_version 2022
 
       - name: Install dependencies
         run: npm ci
