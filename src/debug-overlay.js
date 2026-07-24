@@ -199,8 +199,11 @@ export function initDebugOverlays({ gl, camera, walls, doors, H, osc }) {
       const w = walls[z.wi];
       if (!w) continue;
       const bx0 = w.x0 + z.fx0 * w.wm, bx1 = w.x0 + z.fx1 * w.wm;
-      const by0 = z.fy0 * H, by1 = z.fy1 * H;
-      const p0 = toScreen(bx0, by1, 0.02), p1 = toScreen(bx1, by0, 0.02);
+      // Bridge fy: 0 = top of wall, 1 = floor (screen-down). Our world y is the
+      // opposite (0 = floor, H = top), so flip: worldY = (1 - fy) * H.
+      const byA = (1 - z.fy0) * H, byB = (1 - z.fy1) * H;
+      const byLo = Math.min(byA, byB), byHi = Math.max(byA, byB);
+      const p0 = toScreen(bx0, byHi, 0.02), p1 = toScreen(bx1, byLo, 0.02);
       const x = Math.min(p0[0], p1[0]), y = Math.min(p0[1], p1[1]);
       const wpx = Math.abs(p1[0] - p0[0]), hpx = Math.abs(p1[1] - p0[1]);
       // does the zone actually overlap the door it names?
@@ -208,7 +211,7 @@ export function initDebugOverlays({ gl, camera, walls, doors, H, osc }) {
       let ok = false;
       if (door) {
         const h = door.hitRect();
-        ok = bx0 < h.x1 && bx1 > h.x0 && by0 < h.y1 && by1 > h.y0;
+        ok = bx0 < h.x1 && bx1 > h.x0 && byLo < h.y1 && byHi > h.y0;
       }
       ctx.save();
       ctx.setLineDash([7, 5]);

@@ -198,11 +198,11 @@ Thay vì chạm tay từng ô, bridge có thể **gửi toạ độ từng zone*
 Bridge gửi thêm (song song với gói `1`/`0` bình thường):
 
 ```
-/zonecal/tuongN/cuaM   fx0  fx1  [fy0  fy1]      ← các số FLOAT 0..1
+/zonecal/tuongN/cuaM   fx0  fx1  fy0  fy1      ← 4 số FLOAT (OSC type "f"), giá trị 0..1
 ```
-- `fx0, fx1` = zone trải ngang bao nhiêu **dọc theo tường N** (0 = đầu trái tường, 1 = đầu phải).
-- `fy0, fy1` = phần chiều cao tường (tuỳ chọn; bỏ trống = phủ hết chiều cao).
-- Gửi **1 lần lúc khởi động** hoặc **mỗi khi zone thay đổi** (app giữ giá trị mới nhất). Muốn "live" khi kéo zone thì gửi lặp ~1–2 lần/giây.
+- `fx0, fx1` = zone trải ngang bao nhiêu **dọc theo tường N** (0 = mép trái, 1 = mép phải).
+- `fy0, fy1` = theo **chiều cao** tường: **0 = đỉnh, 1 = sàn** (cùng hệ toạ độ y với gói chạm bên bridge — app tự lật cho khớp world của nó).
+- Luôn gửi đủ **4 số float**. Gửi lặp **~1 lần/giây** trong lúc bridge chạy (tự cập nhật khi kéo zone).
 
 **Python (`python-osc`):**
 ```python
