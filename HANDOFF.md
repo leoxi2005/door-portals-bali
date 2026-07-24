@@ -2,7 +2,43 @@
 
 > Mở **session Claude Code MỚI** ở `~/door-portals`, cho đọc **file này** thay vì
 > tiếp session cũ (tiết kiệm credit). File này là đủ context để làm tiếp.
-> ⚠️ **Chưa phải git repo** → không có lịch sử commit; cẩn thận khi sửa, backup nếu cần.
+> ✅ **Đã là git repo trên GitHub:** `leoxi2005/door-portals-bali` (public). `gh` đang đăng nhập tài khoản **leoxi2005**. Sửa xong nhớ `git commit && git push`.
+
+---
+
+## 0. BẮT ĐẦU SESSION MỚI (đọc trước) — cập nhật 2026-07-24
+
+**📋 Câu lệnh dán vào session Claude Code MỚI (mở ở `~/door-portals`):**
+
+> Đọc `HANDOFF.md` ở thư mục này để nắm toàn bộ context dự án Door Portals (touch-wall LiDAR → 5 tường NDI, phòng pentagon Bali). Đây **đã là git repo** trên GitHub `leoxi2005/door-portals-bali` (public, `gh` đã login `leoxi2005`). **TUÂN THỦ quy tắc tiết kiệm credit (mục 12):** không tự chụp screenshot; muốn xem kết quả thì `SNAP_DIR=<dir> RENDER_SCALE=0.5 npm start` (lưu snap1..3.png giây 8/11/15) → downscale → chỉ đưa 1 ảnh khi cần quyết định; gộp nhiều chỉnh vào 1 lần rồi mới render. Chỉ đọc thêm file cụ thể khi cần cho việc đang làm (đừng đọc lại toàn bộ). Xác nhận đã nắm context rồi mình nói việc tiếp.
+
+**Trạng thái hiện tại:**
+- **Bản phát hành mới nhất: `v1.0.2`** → https://github.com/leoxi2005/door-portals-bali/releases
+  Đủ 3 file: `.dmg` (macOS ARM), `Setup .exe` + `-win.zip` (Windows). Có icon riêng.
+- App LiDAR Bridge (Hokuyo, dự án riêng): đang ở **v5.8** với giao thức zone + `/zonecal` đã chốt.
+
+**Đã làm ở session 2026-07-23→24 (tóm tắt để không lặp lại):**
+1. **Visual:** thêm **feather mép portal** (inner-shadow recess, `door.js` `makeInnerShadowTexture`/`portalVignette`) + **lớp sao twinkle** (`environment.js` `makeStars`, `config.quality.stars`). ⚠️ **ĐÃ BỎ god-ray/dust khi mở cửa** vì additive mạnh + tăng bloom làm **CHÁY** video — đừng làm lại kiểu đó.
+2. **Icon app:** `build/icon.png` (1024²) render từ `scratchpad icon.html` bằng Electron `capturePage`. Trỏ trong `package.json` (`build.icon` + `mac.icon` + `win.icon`). Đổi icon: sửa html → render lại png → build.
+3. **Đóng gói & phát hành:** `npm run build:mac` tại máy; **Windows build qua GitHub Actions** (`.github/workflows/release.yml`). Đã loại video backup khỏi bundle & repo (`package.json files` có `!...`, `.gitignore`) → app ~590MB thay vì 1GB.
+4. **Overlay kiểm tra zone `/zonecal`** — xem **mục 13**.
+
+**⚠️ Bẫy CI Windows (ĐÃ FIX trong workflow — đừng vấp lại):**
+- Runner phải **`windows-2022`** (windows-latest = VS2026 mà `node-gyp 9.4.1` của grandiose không nhận).
+- Cần **Python 3.11** (`setup-python`); Python 3.12 làm crash gyp của grandiose.
+- Upload `.exe` bằng **`softprops/action-gh-release`** (electron-builder `--publish always` bị conflict "draft vs release" khi release đã tồn tại).
+- Module NDI native **`grandiose` KHÔNG cross-build được trên Mac** → Windows bắt buộc build trên CI/máy Windows.
+
+**Ra bản mới (quy trình chuẩn):**
+```
+# 1. sửa code, test bằng SNAP nếu là visual
+# 2. bump "version" trong package.json (vd 1.0.3)
+git add -A && git commit -m "..." && git push
+npm run build:mac                       # ra release/*.dmg
+gh release create v1.0.3 "release/Door Portals-1.0.3-arm64.dmg#macOS (Apple Silicon) .dmg" \
+   --title "Door Portals v1.0.3" --notes "..."
+# → tag v1.0.3 tự trigger CI build Windows + đính .exe/.zip vào release
+```
 
 ---
 
@@ -97,3 +133,25 @@ App nghe **cổng UDP 7000** (`config.osc.port`). Bridge bắn:
 - **Screenshot/render là thứ đốt tiền nhất.** Dùng `SNAP_DIR` chụp frame nội bộ → **downscale** → chỉ đưa **1 ảnh** khi cần quyết định. **Gộp nhiều chỉnh vào 1 lần** rồi mới chụp.
 - Việc cơ học (đổi số/màu) → có thể để model Sonnet; để Opus cho quyết định thẩm mỹ khó.
 - 1 session = 1 mục tiêu; xong → `/clear`. Đọc file này để lấy lại context.
+
+## 13. Overlay kiểm tra ZONE khớp cửa (`/zonecal`) — MỚI (v1.0.2)
+
+Mục đích: **thấy zone của bridge có nằm đúng ô cửa không** mà khỏi chạm thử từng cái.
+
+- **Bridge gửi song song** với gói chạm `/tuongN/zone/cuaM 1|0`, tới **cùng IP cổng 7000**:
+  ```
+  /zonecal/tuongN/cuaM   fx0  fx1  fy0  fy1     ← 4 số FLOAT (OSC type "f") 0..1, ~1 lần/giây
+  ```
+  - `fx0,fx1` = vị trí zone **dọc theo tường** (0 = mép trái → 1 = mép phải).
+  - `fy0,fy1` = **chiều cao**: **0 = đỉnh → 1 = sàn** (quy ước bridge). **App TỰ LẬT** sang world-y (0=sàn, H=đỉnh) — bridge **giữ nguyên**, đừng lật.
+- **App xử lý:** `src/app.js` (`zoneCalRe` + `dbg.setBridgeZone`) → `src/debug-overlay.js` (`setBridgeZone`, vẽ trong hàm `draw` của bản đồ **Shift+M**). Khung nét đứt **xanh = trùng cửa, đỏ = lệch**.
+- **Dùng:** bấm **Shift+M** → chỉnh vị trí zone bên bridge cho tới khi mọi khung thành xanh.
+- **Đã chốt & test bằng gói thật** (fy 0.333/0.889 vẽ đúng dọc). README có code mẫu Python/Node.
+
+## 14. Phân phối / GitHub (chi tiết)
+
+- Repo public: **github.com/leoxi2005/door-portals-bali**. README có hướng dẫn tải + vận hành + kết nối bridge + overlay (hiển thị ngay trang repo).
+- Mac build tại máy này (arm64); **chưa ký** → mở lần đầu chuột phải → Open. (Chưa làm Intel x64 / notarize.)
+- Windows exe do CI build (`windows-2022` + Python 3.11 + softprops upload). Cần **NDI Runtime** chỉ khi phát NDI ra MadMapper; xem/chạy thường thì không cần.
+- `.bak-visual/` = backup local trước khi sửa visual (đã .gitignore, vô hại).
+- Icon nguồn: `build/icon.png`. Script render nằm ở scratchpad (`icon.html` + `make-icon.js`) — không commit; nếu cần đổi icon xem mục 0.
