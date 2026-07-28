@@ -6,16 +6,24 @@
 
 ---
 
-## 0. BẮT ĐẦU SESSION MỚI (đọc trước) — cập nhật 2026-07-24
+## 0. BẮT ĐẦU SESSION MỚI (đọc trước) — cập nhật 2026-07-28
 
 **📋 Câu lệnh dán vào session Claude Code MỚI (mở ở `~/door-portals`):**
 
 > Đọc `HANDOFF.md` ở thư mục này để nắm toàn bộ context dự án Door Portals (touch-wall LiDAR → 5 tường NDI, phòng pentagon Bali). Đây **đã là git repo** trên GitHub `leoxi2005/door-portals-bali` (public, `gh` đã login `leoxi2005`). **TUÂN THỦ quy tắc tiết kiệm credit (mục 12):** không tự chụp screenshot; muốn xem kết quả thì `SNAP_DIR=<dir> RENDER_SCALE=0.5 npm start` (lưu snap1..3.png giây 8/11/15) → downscale → chỉ đưa 1 ảnh khi cần quyết định; gộp nhiều chỉnh vào 1 lần rồi mới render. Chỉ đọc thêm file cụ thể khi cần cho việc đang làm (đừng đọc lại toàn bộ). Xác nhận đã nắm context rồi mình nói việc tiếp.
 
 **Trạng thái hiện tại:**
-- **Bản phát hành mới nhất: `v1.0.2`** → https://github.com/leoxi2005/door-portals-bali/releases
-  Đủ 3 file: `.dmg` (macOS ARM), `Setup .exe` + `-win.zip` (Windows). Có icon riêng.
+- **Bản phát hành mới nhất: `v1.0.3`** (2026-07-28) → https://github.com/leoxi2005/door-portals-bali/releases/tag/v1.0.3
+  Đủ 3 file: `.dmg` (macOS ARM) + `Setup .exe` + `-win.zip` (Windows, CI build OK). Có icon riêng.
+  Nội dung: đổi sang **phòng 240 cm / 10350×1080** + fix vùng chạm chồng nhau + fix cây bật gốc.
 - App LiDAR Bridge (Hokuyo, dự án riêng): đang ở **v5.8** với giao thức zone + `/zonecal` đã chốt.
+
+**⚠️ VIỆC ON-SITE CÒN NỢ sau khi đổi độ phân giải (v1.0.3) — chưa ai làm:**
+1. **Đo lại vị trí zone bên bridge.** Địa chỉ OSC không đổi (vẫn 9 cửa `/tuongN/zone/cuaM`),
+   nhưng tường 1/3/4 đổi bề rộng vật lý nên toạ độ zone cũ lệch. Cách làm: chạy app → bấm
+   **Shift+M** → chỉnh bridge tới khi mọi khung nét đứt thành **xanh** (mục 13).
+2. **Warp lại cả 5 nguồn trong MadMapper** — tỉ lệ từng luồng đã khác
+   (vd `DOOR-WALL-3` từ 2079 → 1980 px).
 
 **Đã làm ở session 2026-07-28:**
 1. **Đổi độ phân giải phòng** sang số đo mới (mục 2): 5 tường **240 cm cao**, rộng
@@ -112,7 +120,13 @@ App nghe **cổng UDP 7000** (`config.osc.port`). Bridge bắn:
 - Asset cây/ivy/hoa: PNG do **higgsfield** tạo, **chroma-key magenta bằng code** (không dùng AI remover → tránh viền hộp). Nằm ở `assets/textures/decor/` (tree-oak-a/b, tree-willow, tree-oakbroad, tree-slender, canopy-arch, ivy-strand, bush-flowers).
 - **QUY TẮC QUAN TRỌNG:**
   - **Decor luôn ở SAU portal** (z < −0.1) → video KHÔNG bao giờ bị che (portal opaque che depth).
-  - Cây **pivot ở gốc** + **`fadeBottom`** (fade alpha đáy) → rễ tan vào đất, KHÔNG "bật gốc".
+  - Cây **pivot ở gốc** + **`fadeBottom`/`fadeFrom`** → rễ tan vào đất, KHÔNG "bật gốc".
+    ⚠️ PNG cây **không align đáy** (mỗi file trống một kiểu dưới rễ, `tree-oakbroad` tới 9.3%).
+    Đừng đặt `y` bằng tay — luôn qua **`treeBase(name, h)`** (lún = padding×h + 12 cm, và
+    `fadeFrom` = padding để alpha về 0 đúng pixel rễ thấp nhất). **Thêm cây mới → phải đo
+    padding rồi điền vào bảng `TREE_PAD`** (script đo: PIL, quét alpha từ đáy lên).
+  - Nook decor dựng ở **không gian gốc 0.9×1.7 m** (`AUTH_H`) rồi scale 1 lần theo `DOOR_H`
+    import từ `door.js` → **đổi cỡ cửa là cây/ivy/hoa tự theo**, đừng sửa tay từng offset.
   - Ivy trước mặt cửa **mờ tức thì** khi mở (openables fade).
 - `makeFarTrees()` = cây xa mờ tối (silhouette nền, fadeBottom) tạo chiều sâu quanh cửa dummy.
 
@@ -129,9 +143,23 @@ App nghe **cổng UDP 7000** (`config.osc.port`). Bridge bắn:
 2. Chạy `npm start` → bấm **O** kiểm gói tới (lệch tên thì sửa `zoneRule`); bấm **Shift+M** đối chiếu cửa↔địa chỉ.
 3. MadMapper: thêm 5 nguồn NDI `DOOR-WALL-1..5` → warp 4 góc mỗi cái lên đúng tường.
 
+**Vị trí cửa thật (để đặt zone bên bridge), tính từ mép TRÁI mỗi tường — bản 240 cm:**
+
+| Tường | Rộng | Tâm cửa | Vùng chạm mỗi cửa |
+|:--:|:--|:--|:--|
+| 1 | 180 cm | 90 | 180 cm (vừa khít cả tường) |
+| 2 | 560 cm | 168 / 392 | 188 cm |
+| 3 | 440 cm | 132 / 308 | 176 cm (đã co để 2 vùng không chồng) |
+| 4 | 500 cm | 150 / 350 | 188 cm |
+| 5 | 620 cm | 186 / 434 | 188 cm |
+
+Cửa rộng 98 cm; vùng chạm = cửa + pad 2 bên (mặc định 45 cm, tự co khi hẹp — xem `app.js`).
+
 ## 10. File chính
 - `src/app.js` — main: dẫn xuất px/mét từ walls, scene, camera, **render loop + 5 NDI crop**, OSC/zone handler, HUD.
-- `src/door.js` — class `Door` (khung/cánh/portal/state machine, `setOpen`, `hitRect`). `DOOR_W=0.9, DOOR_H=1.7`, yaw 3–7°, portal ôm sát khung `z=-0.025` size `+0.12` (fix "nửa video khác").
+- `src/door.js` — class `Door` (khung/cánh/portal/state machine, `setOpen`, `hitRect`).
+  **`DOOR_W=0.98, DOOR_H=1.85` (export, nguồn duy nhất — decor.js import theo)**, `hitPad`
+  (app.js set per-wall), yaw 3–7°, portal ôm sát khung `z=-0.025` size `+0.12` (fix "nửa video khác").
 - `src/worlds.js` — `World` + **VideoPool** random.
 - `src/environment.js` — sky, meadow, fog, **grass (opaque alphaTest 0.5 + alphaToCoverage, cắm gốc)**, dummyDoors (đã kéo lên +0.14), **fireflies (twinkle shader)**, aurora, trees(cành rủ), lanterns, butterflies, groundGlow.
 - `src/decor.js` — cổng cây per-door + `makeFarTrees`.
@@ -141,6 +169,10 @@ App nghe **cổng UDP 7000** (`config.osc.port`). Bridge bắn:
 - `ARCHITECTURE-5WALL.md` — kế hoạch chi tiết 5 tường (một phần đã thay bằng cách "crop").
 
 ## 11. Lưu ý / có thể làm tiếp
+- **Render giờ 11.2 Mpx** (10350×1080, +44% so bản 220 cm). RTX 5080 ổn; Mac dev bắt buộc `RENDER_SCALE`.
+- **Đổi số đo tường lần nữa:** chỉ sửa `config.json → walls` (px/wcm/hcm/doors) — mét, vị trí cửa,
+  vùng chạm, 5 crop NDI tự suy ra hết. Giữ **px/cm đồng nhất giữa các tường và với chiều cao**
+  (hiện 4.5) thì crop NDI mới trùng khít px thật, không lệch pixel.
 - Grain đã hạ (0.004), bloom vừa (đừng để chói). Nếu cần chỉnh: `gradePass` grain trong app.js, `bloom*` trong config.
 - `mushroomTexture()` trong decor.js giờ **không dùng** (đã bỏ nấm) — dead code, vô hại.
 - Sửa độ phân giải bằng panel **R** → cần **khởi động lại app** để áp dụng.
@@ -148,6 +180,14 @@ App nghe **cổng UDP 7000** (`config.osc.port`). Bridge bắn:
 
 ## 12. QUY TẮC TIẾT KIỆM CREDIT (quan trọng — đây là loop chỉnh visual)
 - **Screenshot/render là thứ đốt tiền nhất.** Dùng `SNAP_DIR` chụp frame nội bộ → **downscale** → chỉ đưa **1 ảnh** khi cần quyết định. **Gộp nhiều chỉnh vào 1 lần** rồi mới chụp.
+- **Mẹo dùng SNAP (đỡ mò lại):**
+  - App **KHÔNG tự tạo thư mục** → `mkdir -p $SNAP_DIR` trước, không thì log chỉ báo `[snap] failed: ENOENT`.
+  - Ảnh là **capture cả cửa sổ Electron** (~2560×1464), không phải riêng canvas. Canvas nằm
+    ở một **dải ngang giữa ảnh** (~y 598–865 khi cửa sổ mặc định) — dò bằng độ sáng hàng rồi
+    crop dải đó, phóng 3× mới nhìn rõ chi tiết (gốc cây, mép portal…).
+  - HUD in sẵn trên ảnh: `10350x1080@30 render:… fps:…` + danh sách 5 crop NDI → **kiểm tra
+    số liệu bằng HUD, khỏi cần thêm ảnh**.
+  - `zsh` không có `timeout`; chạy nền rồi `pkill -f "door-portals/node_modules/electron"`.
 - Việc cơ học (đổi số/màu) → có thể để model Sonnet; để Opus cho quyết định thẩm mỹ khó.
 - 1 session = 1 mục tiêu; xong → `/clear`. Đọc file này để lấy lại context.
 
