@@ -46,7 +46,7 @@ export function initResPanel({ wallsCfg, PX_H, api }) {
   document.body.appendChild(panel);
 
   let heightPx = PX_H;
-  const hcm = wallsCfg[0]?.hcm ?? 220;
+  const hcm = wallsCfg[0]?.hcm ?? 240;
 
   panel.innerHTML =
     `<h3>ĐỘ PHÂN GIẢI TỪNG TƯỜNG</h3>` +

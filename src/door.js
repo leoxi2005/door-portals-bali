@@ -9,8 +9,13 @@ import { addDoorDecor } from './decor.js';
 
 // Doors sit a little smaller than the frame height so the tree canopy arch has
 // room to curve over the top (enchanted-portal framing).
-const DOOR_W = 0.9;
-const DOOR_H = 1.7;
+// Real-world size on the wall (the render maps 1:1 onto the physical walls):
+// 185 x 98 cm on a 240 cm wall — the door keeps the same 77% share of the wall
+// height it had on the old 220 cm walls. decor.js scales its nook off DOOR_H,
+// so changing these two numbers re-proportions the trees/ivy/flowers with them.
+export const DOOR_W = 0.98;
+export const DOOR_H = 1.85;
+const HIT_PAD = 0.45;   // default touch slack around the door leaf (m)
 const FRAME_T = 0.14;   // frame bar thickness
 const PANEL_T = 0.07;
 
@@ -98,16 +103,22 @@ export class Door {
   }
 
   // Forgiving touch test in scene meters (no raycast needed — ortho, frontal).
+  // hitPad is the sideways slack around the door leaf; app.js shrinks it per wall
+  // so two neighbouring zones can never overlap on a narrow wall, and so a zone
+  // never spills past a wall edge (that is a physical room corner).
+  get hitPad() { return this._hitPad ?? HIT_PAD; }
+  set hitPad(v) { this._hitPad = Math.max(0.05, v); }
+
   hitTest(xm, ym) {
-    return Math.abs(xm - this.x) <= DOOR_W / 2 + 0.45 &&
-           ym <= DOOR_H + 0.45;
+    return Math.abs(xm - this.x) <= DOOR_W / 2 + this.hitPad &&
+           ym <= DOOR_H + HIT_PAD;
   }
 
   // Same zone as hitTest but as a world-meter rectangle (for the calibrate overlay).
   hitRect() {
     return {
-      x0: this.x - (DOOR_W / 2 + 0.45), x1: this.x + (DOOR_W / 2 + 0.45),
-      y0: 0, y1: DOOR_H + 0.45
+      x0: this.x - (DOOR_W / 2 + this.hitPad), x1: this.x + (DOOR_W / 2 + this.hitPad),
+      y0: 0, y1: DOOR_H + HIT_PAD
     };
   }
 

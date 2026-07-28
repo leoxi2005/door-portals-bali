@@ -1,4 +1,4 @@
-# DOOR PORTALS — LiDAR Touch Wall (5 tường / 9335×1080)
+# DOOR PORTALS — LiDAR Touch Wall (5 tường / 10350×1080)
 
 Phòng pentagon 5 tường chiếu liền mạch. Mỗi tường: 1 LiDAR riêng + cửa tương tác riêng,
 tất cả trong 1 scene panorama. Chạm cửa → cửa mở → "thế giới khác" tràn **riêng tường đó**.
@@ -7,7 +7,7 @@ tất cả trong 1 scene panorama. Chạm cửa → cửa mở → "thế giới
 
 ```bash
 cd ~/door-portals
-npm start                        # full 9335×1080 (máy show / RTX 5080)
+npm start                        # full 10350×1080 (máy show / RTX 5080)
 RENDER_SCALE=0.35 npm start      # preview nhẹ khi dev trên Mac
 ```
 
@@ -35,9 +35,9 @@ Trigger tay: `/door/1`..`/door/9` vào bất kỳ port nào.
 Thay thế giới nào chỉ cần thay file mp4 đó (16:9, ~10s = overlayHold).
 Video chỉ phát 1 lần mỗi lượt mở cửa nên không cần loop.
 
-## Kiến trúc hình ảnh (chống mờ ở 9335px + loop hoàn hảo)
+## Kiến trúc hình ảnh (chống mờ ở 10350px + loop hoàn hảo)
 
-- KHÔNG có video/plate nào bị kéo giãn ra 9335px.
+- KHÔNG có video/plate nào bị kéo giãn ra 10350px.
 - Sky + dải sương đồi xa: texture 2K **uniform, mirror-repeat** (tile vô hình) + drift chậm.
 - Sương mặt đất: **shader fbm procedural** — không có cạnh, trôi vô hạn = tự loop.
 - Cửa (9 hero + dummy bay), cỏ billboard, đom đóm: 3D real-time, luôn sắc nét.

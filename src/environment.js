@@ -1,7 +1,7 @@
 // Environment layers for the 5-wall panorama (orthographic, meters).
 // x: 0..W (left edge of wall 1 → right edge of wall 5), y: 0..H (floor → top).
 // Everything is either native-resolution 3D or a high-res tiled AI texture —
-// nothing is a single stretched plate, so nothing goes soft at 9335 px.
+// nothing is a single stretched plate, so nothing goes soft at 10350 px.
 
 import * as THREE from 'three';
 

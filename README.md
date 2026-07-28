@@ -130,14 +130,14 @@ sendZone(2, 1, false);   // đóng
 
 ### Bản đồ Tường ↔ Cửa ↔ Địa chỉ OSC ↔ Luồng NDI
 
-Theo `config.json` hiện tại (5 tường cao 220 cm, tổng 9 cửa):
+Theo `config.json` hiện tại (5 tường cao 240 cm, tổng 9 cửa):
 
 | Tường | Rộng | Số cửa | Địa chỉ OSC bridge gửi | Cửa (global) | Luồng NDI |
 |:-----:|:----:|:------:|------------------------|:------------:|-----------|
-| 1 | 220 cm | 1 | `/tuong1/zone/cua1` | Cửa 1 | `DOOR-WALL-1` |
-| 2 | 550 cm | 2 | `/tuong2/zone/cua1`, `/tuong2/zone/cua2` | Cửa 2, 3 | `DOOR-WALL-2` |
-| 3 | 550 cm | 2 | `/tuong3/zone/cua1`, `/tuong3/zone/cua2` | Cửa 4, 5 | `DOOR-WALL-3` |
-| 4 | 530 cm | 2 | `/tuong4/zone/cua1`, `/tuong4/zone/cua2` | Cửa 6, 7 | `DOOR-WALL-4` |
+| 1 | 180 cm | 1 | `/tuong1/zone/cua1` | Cửa 1 | `DOOR-WALL-1` |
+| 2 | 560 cm | 2 | `/tuong2/zone/cua1`, `/tuong2/zone/cua2` | Cửa 2, 3 | `DOOR-WALL-2` |
+| 3 | 440 cm | 2 | `/tuong3/zone/cua1`, `/tuong3/zone/cua2` | Cửa 4, 5 | `DOOR-WALL-3` |
+| 4 | 500 cm | 2 | `/tuong4/zone/cua1`, `/tuong4/zone/cua2` | Cửa 6, 7 | `DOOR-WALL-4` |
 | 5 | 620 cm | 2 | `/tuong5/zone/cua1`, `/tuong5/zone/cua2` | Cửa 8, 9 | `DOOR-WALL-5` |
 
 > Đổi số tường / số cửa / kích thước trong `config.json → walls` là **toàn bộ tự dãn** (mét, vị trí cửa, vùng cắt NDI). Bảng trên sinh ra từ đó.
@@ -259,7 +259,7 @@ Trong **MadMapper** (máy show): thêm 5 nguồn NDI này → warp 4 góc mỗi 
 
 ```bash
 npm install
-npm start                    # full 9335×832
+npm start                    # full 10350×1080
 RENDER_SCALE=0.55 npm start  # preview nhẹ
 ```
 

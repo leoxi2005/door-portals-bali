@@ -17,9 +17,16 @@
 
 import * as THREE from 'three';
 import { loadTex } from './environment.js';
+import { DOOR_H as REAL_DOOR_H } from './door.js';
 
-const DOOR_W = 0.9;
-const DOOR_H = 1.7;
+// Every offset in this file is hand-tuned against a 0.9 x 1.7 m door (AUTH_H).
+// The real door can be a different size (the walls' height is config-driven), so
+// the nook is BUILT in authored space and the finished group is scaled once by
+// REAL_DOOR_H / AUTH_H — trunks, ivy, flowers and contact shadows all stay in
+// proportion with the door, and the ground line still lands on the floor.
+// (The ratio is read inside addDoorDecor, not at module scope: door.js imports
+// this file, so at module-eval time REAL_DOOR_H may still be in its TDZ.)
+const AUTH_H = 1.7;
 
 const texCache = {};
 function tex(path) { return texCache[path] || (texCache[path] = loadTex(path)); }
@@ -35,9 +42,36 @@ function mulberry32(seed) {
 }
 
 const TREES = ['tree-oak-a', 'tree-oak-b', 'tree-willow', 'tree-oakbroad', 'tree-slender'];
+
+// The cutouts are NOT bottom-aligned: each PNG has some empty pixels under its
+// roots (measured from the alpha channel — tree-oakbroad has 9.3% of the texture
+// height). A billboard whose plane bottom sits on the ground therefore floats its
+// roots that much ABOVE the grass, and the fadeBottom ramp is wasted inside the
+// empty band, so the root flare ends on a hard half-transparent edge — it reads
+// as "uprooted". treeBase() compensates per texture: sink the plane by its own
+// padding (+ a bury depth) and start the alpha ramp where the roots really begin.
+const TREE_PAD = {
+  'tree-oak-a': 0.021, 'tree-oak-b': 0.035, 'tree-oakbroad': 0.093,
+  'tree-slender': 0.045, 'tree-willow': 0.040
+};
+// how far the visible root flare is pushed UNDER the ground line, in metres
+const TREE_BURY = 0.12;
+
+// → billboard options for a tree of world height h.
+//   sink = metres to lower the plane so the roots sit just under the ground line
+//   from/fade = alpha ramp: 0 exactly at the roots' lowest pixel → 1 above it
+function treeBase(name, h, extraBury = 0) {
+  const pad = TREE_PAD[name] ?? 0.03;
+  return {
+    map: tex('assets/textures/decor/' + name + '.png'),
+    sink: pad * h + TREE_BURY + extraBury,
+    from: pad,
+    fade: pad + 0.15
+  };
+}
 const TREE_AR = 1792 / 2432, IVY_AR = 1536 / 2688, BUSH_AR = 2432 / 1792;
 
-function billboard(map, w, h, { x, y, z, pivot = 'center', flip = 1, opacity = 1, tint = 0x7b88a8, rot = 0, fadeBottom = 0 }) {
+function billboard(map, w, h, { x, y, z, pivot = 'center', flip = 1, opacity = 1, tint = 0x7b88a8, rot = 0, fadeBottom = 0, fadeFrom = 0 }) {
   const geo = new THREE.PlaneGeometry(w, h);
   if (pivot === 'bottom') geo.translate(0, h / 2, 0);
   else if (pivot === 'top') geo.translate(0, -h / 2, 0);
@@ -46,6 +80,9 @@ function billboard(map, w, h, { x, y, z, pivot = 'center', flip = 1, opacity = 1
   });
   // Dissolve the very bottom of the texture into the ground (e.g. tree roots),
   // so a billboard's exposed-root base never reads as "uprooted / floating".
+  // fadeFrom is where alpha hits 0 — set it to the texture's empty bottom padding
+  // so the ramp starts on the lowest REAL pixel of the roots, not on blank space
+  // (otherwise the flare's bottom edge stays ~30% opaque and looks lifted).
   if (fadeBottom > 0) {
     mat.onBeforeCompile = (shader) => {
       shader.vertexShader = 'varying float vFadeY;\n' + shader.vertexShader.replace(
@@ -53,7 +90,7 @@ function billboard(map, w, h, { x, y, z, pivot = 'center', flip = 1, opacity = 1
       );
       shader.fragmentShader = 'varying float vFadeY;\n' + shader.fragmentShader.replace(
         '#include <map_fragment>',
-        `#include <map_fragment>\n  diffuseColor.a *= smoothstep(0.0, ${fadeBottom.toFixed(3)}, vFadeY);`
+        `#include <map_fragment>\n  diffuseColor.a *= smoothstep(${fadeFrom.toFixed(3)}, ${Math.max(fadeFrom + 0.01, fadeBottom).toFixed(3)}, vFadeY);`
       );
     };
   }
@@ -86,7 +123,7 @@ function contactShadow(w, x, z, op = 0.5) {
     new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, opacity: op, depthWrite: false, fog: true })
   );
   m.rotation.x = -Math.PI / 2;
-  m.position.set(x, -DOOR_H / 2 + 0.03, z);
+  m.position.set(x, -AUTH_H / 2 + 0.03, z);
   return m;
 }
 
@@ -149,16 +186,17 @@ export function makeFarTrees(W, count = 9) {
     // Dark, hazy silhouettes only — they read as depth, never as detailed trees
     // (so no visible "uprooted" root flare floating at the horizon).
     const v = 0.13 - depth * 0.05;
-    const t = billboard(tex('assets/textures/decor/' + name + '.png'), w, h, {
+    const b = treeBase(name, h, 0.22 + Math.random() * 0.35);  // extra: horizon haze
+    const t = billboard(b.map, w, h, {
       x: Math.random() * W,
-      y: -0.35 - Math.random() * 0.4,                       // base sunk low → roots hidden
+      y: -b.sink,                                           // base sunk low → roots hidden
       z,
       pivot: 'bottom',
       flip: Math.random() < 0.5 ? -1 : 1,
       rot: (Math.random() - 0.5) * 0.18,
       opacity: 0.6,
       tint: new THREE.Color(v * 0.8, v * 0.9, v * 1.25),
-      fadeBottom: 0.22
+      fadeBottom: b.fade, fadeFrom: b.from
     });
     group.add(t);
     items.push({ mesh: t, base: t.rotation.z, amp: 0.005 + Math.random() * 0.005,
@@ -170,18 +208,26 @@ export function makeFarTrees(W, count = 9) {
   return group;
 }
 
-export function addDoorDecor(group, index) {
+export function addDoorDecor(parent, index) {
+  // Authored-space nook (see AUTH_H at the top): built at 0.9 x 1.7 m and
+  // scaled onto the real door in one go. The parent group's origin is the door
+  // centre, so the uniform scale keeps the ground line exactly on the floor.
+  const group = new THREE.Group();
+  group.scale.setScalar(REAL_DOOR_H / AUTH_H);
+  parent.add(group);
+
   const rng = mulberry32((index + 1) * 2654435761);
   const swayers = [];
   const openables = []; // { mesh, base, fade } — fade away as the door opens
 
-  const pickTree = () => tex('assets/textures/decor/' + TREES[Math.floor(rng() * TREES.length)] + '.png');
+  const pickTree = () => TREES[Math.floor(rng() * TREES.length)];
 
   // --- two flanking trunks, asymmetric: one side dominant ------------------
   // Roots planted on the ground (pivot at base) so the crown sways but the trunk
   // never lifts. Placed BEHIND the portal (z < -0.1) so the world video always
   // occludes them inside the doorway — foliage can only ever frame, never cover.
-  const GROUND = -DOOR_H / 2;
+  // treeBase() buries the root flare per texture so no trunk reads as uprooted.
+  const GROUND = -AUTH_H / 2;
   const dominant = rng() < 0.5 ? -1 : 1;
   for (const s of [-1, 1]) {
     const boss = (s === dominant);
@@ -190,9 +236,10 @@ export function addDoorDecor(group, index) {
     const xoff = (boss ? 0.72 + rng() * 0.2 : 0.82 + rng() * 0.25);
     const rot = (rng() - 0.5) * 0.24 - s * 0.05;                 // lean slightly inward
     const flip = s * (rng() < 0.35 ? -1 : 1);
-    const t = billboard(pickTree(), tw, th, {
-      x: s * xoff, y: GROUND - 0.16 - rng() * 0.12, z: -0.16 - rng() * 0.12,
-      pivot: 'bottom', flip, rot, opacity: 0.97, tint: coolTint(rng), fadeBottom: 0.22
+    const b = treeBase(pickTree(), th, rng() * 0.06);
+    const t = billboard(b.map, tw, th, {
+      x: s * xoff, y: GROUND - b.sink, z: -0.16 - rng() * 0.12,
+      pivot: 'bottom', flip, rot, opacity: 0.97, tint: coolTint(rng), fadeBottom: b.fade, fadeFrom: b.from
     });
     group.add(contactShadow(1.2 + rng() * 0.5, s * xoff, 0.04 + rng() * 0.06, 0.5));
     group.add(t);
@@ -201,9 +248,10 @@ export function addDoorDecor(group, index) {
   // occasional third small sapling for a wilder nook
   if (rng() < 0.4) {
     const th = 1.5 + rng() * 0.5, tw = th * TREE_AR, s = rng() < 0.5 ? -1 : 1;
-    const t = billboard(pickTree(), tw, th, {
-      x: s * (1.0 + rng() * 0.3), y: GROUND - 0.1, z: -0.34, pivot: 'bottom',
-      flip: s, rot: (rng() - 0.5) * 0.3, opacity: 0.9, tint: coolTint(rng, 0.28, 0.38), fadeBottom: 0.2
+    const b = treeBase(pickTree(), th);
+    const t = billboard(b.map, tw, th, {
+      x: s * (1.0 + rng() * 0.3), y: GROUND - b.sink, z: -0.34, pivot: 'bottom',
+      flip: s, rot: (rng() - 0.5) * 0.3, opacity: 0.9, tint: coolTint(rng, 0.28, 0.38), fadeBottom: b.fade, fadeFrom: b.from
     });
     group.add(t);
     swayers.push({ mesh: t, base: t.rotation.z, amp: 0.007, freq: 0.18 + rng() * 0.06, ph: rng() * 6.28 });
@@ -231,7 +279,7 @@ export function addDoorDecor(group, index) {
     const w = h * IVY_AR * (1.0 + rng() * 0.4);
     const op = 0.85;
     const m = billboard(ivyMap, w, h, {
-      x: bx + (rng() - 0.5) * 0.06, y: DOOR_H / 2 - 0.02, z: 0.1, pivot: 'top',
+      x: bx + (rng() - 0.5) * 0.06, y: AUTH_H / 2 - 0.02, z: 0.1, pivot: 'top',
       flip: rng() < 0.5 ? -1 : 1, opacity: op, tint: coolTint(rng, 0.5, 0.62)
     });
     m.rotation.z = (rng() - 0.5) * 0.1;
@@ -244,7 +292,7 @@ export function addDoorDecor(group, index) {
   // Clumps sit at the door's LEFT/RIGHT foot (never centre) so they frame the
   // threshold without covering the door face / the world video when it opens.
   const bushMap = tex('assets/textures/decor/bush-flowers.png');
-  const groundY = -DOOR_H / 2 + 0.02;
+  const groundY = -AUTH_H / 2 + 0.02;
   const spotX = [-0.74, -0.5, 0.5, 0.74];
   const nBush = 4;
   for (let i = 0; i < nBush; i++) {

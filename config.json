@@ -1,7 +1,7 @@
 {
   "output": {
-    "width": 9336,
-    "height": 832,
+    "width": 10350,
+    "height": 1080,
     "fps": 30,
     "renderScale": 1.0
   },
@@ -10,11 +10,11 @@
     "name": "DOOR-PORTALS"
   },
   "walls": [
-    { "px": 831,  "wcm": 220, "hcm": 220, "oscPort": 9001, "doors": [0.5] },
-    { "px": 2079, "wcm": 550, "hcm": 220, "oscPort": 9002, "doors": [0.3, 0.7] },
-    { "px": 2079, "wcm": 550, "hcm": 220, "oscPort": 9003, "doors": [0.3, 0.7] },
-    { "px": 2003, "wcm": 530, "hcm": 220, "oscPort": 9004, "doors": [0.3, 0.7] },
-    { "px": 2343, "wcm": 620, "hcm": 220, "oscPort": 9005, "doors": [0.3, 0.7] }
+    { "px": 810,  "wcm": 180, "hcm": 240, "oscPort": 9001, "doors": [0.5] },
+    { "px": 2520, "wcm": 560, "hcm": 240, "oscPort": 9002, "doors": [0.3, 0.7] },
+    { "px": 1980, "wcm": 440, "hcm": 240, "oscPort": 9003, "doors": [0.3, 0.7] },
+    { "px": 2250, "wcm": 500, "hcm": 240, "oscPort": 9004, "doors": [0.3, 0.7] },
+    { "px": 2790, "wcm": 620, "hcm": 240, "oscPort": 9005, "doors": [0.3, 0.7] }
   ],
   "worlds": [
     { "video": "assets/worlds/door1.mp4", "palette": "meadow" },

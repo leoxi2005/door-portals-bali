@@ -17,6 +17,20 @@
   Đủ 3 file: `.dmg` (macOS ARM), `Setup .exe` + `-win.zip` (Windows). Có icon riêng.
 - App LiDAR Bridge (Hokuyo, dự án riêng): đang ở **v5.8** với giao thức zone + `/zonecal` đã chốt.
 
+**Đã làm ở session 2026-07-28:**
+1. **Đổi độ phân giải phòng** sang số đo mới (mục 2): 5 tường **240 cm cao**, rộng
+   180/560/440/500/620 cm → **10350 × 1080**, đều **4.5 px/cm**. Cửa scale theo → **185 × 98 cm**.
+   Render nặng hơn cũ ~44% pixel (11.2 Mpx vs 7.8) — máy show RTX 5080 vẫn thoải mái.
+2. **Vùng chạm tự co** (`app.js`, `Door.hitPad`): tường 3 hẹp lại nên 2 vùng chạm dự phòng
+   sẽ chồng nhau 12 cm → giờ pad tự tính theo khoảng cách cửa + mép tường (T3 còn 39 cm,
+   T1 vừa khít 180 cm, không tràn qua góc phòng). Đường zone OSC không đổi.
+3. **Fix "cây bật gốc"** (`decor.js`): PNG cây **không align đáy** (tree-oakbroad trống 9.3%
+   chiều cao dưới rễ) → billboard cắm đất vẫn lơ lửng ~30 cm và vệt fade phí trong vùng
+   trống, rễ kết thúc ở ~30% alpha. Nay có `TREE_PAD` (đo từ alpha) + `treeBase()`:
+   lún đúng bằng padding + 12 cm, và `fadeFrom` cho alpha về 0 **đúng pixel rễ thấp nhất**.
+4. **`decor.js` hết hằng số trùng**: import `DOOR_H` từ `door.js`, nook dựng trong không gian
+   gốc 0.9×1.7 m rồi scale 1 lần → đổi cỡ cửa là cây/ivy/hoa tự theo.
+
 **Đã làm ở session 2026-07-23→24 (tóm tắt để không lặp lại):**
 1. **Visual:** thêm **feather mép portal** (inner-shadow recess, `door.js` `makeInnerShadowTexture`/`portalVignette`) + **lớp sao twinkle** (`environment.js` `makeStars`, `config.quality.stars`). ⚠️ **ĐÃ BỎ god-ray/dust khi mở cửa** vì additive mạnh + tăng bloom làm **CHÁY** video — đừng làm lại kiểu đó.
 2. **Icon app:** `build/icon.png` (1024²) render từ `scratchpad icon.html` bằng Electron `capturePage`. Trỏ trong `package.json` (`build.icon` + `mac.icon` + `win.icon`). Đổi icon: sửa html → render lại png → build.
@@ -52,15 +66,18 @@ Electron + Three.js. Cài đặt tương tác cho **phòng pentagon 5 tường**
 *(Lịch sử: từng có concept "ngọn núi/nebula" — ĐÃ BỎ. Đừng làm lại.)*
 
 ## 2. Phòng & độ phân giải (số thật từ chủ dự án)
-5 tường, **đều cao 220 cm**. Rộng: 220 / 550 / 550 / 530 / 620 cm.
-→ px: **831 / 2079 / 2079 / 2003 / 2343** (tổng 9335 × 832). Cửa: **1 / 2 / 2 / 2 / 2 = 9 cửa**.
-Thang mét: `M_PER_PX = (hcm/100) / PX_H = 2.20/832`.
+5 tường, **đều cao 240 cm**. Rộng: 180 / 560 / 440 / 500 / 620 cm.
+→ px: **810 / 2520 / 1980 / 2250 / 2790** (tổng **10350 × 1080**). Cửa: **1 / 2 / 2 / 2 / 2 = 9 cửa**.
+Thang mét: `M_PER_PX = (hcm/100) / PX_H = 2.40/1080`. Đồng nhất **4.5 px/cm** ở cả 5 tường
+và cả chiều cao → 5 vùng cắt NDI trùng khít px thật, không lệch 1 pixel nào.
+Chu vi 23.00 m, cửa **185 × 98 cm** (77% chiều cao tường — `DOOR_W/DOOR_H` trong `src/door.js`,
+`decor.js` tự co giãn nook cây/ivy/hoa theo `DOOR_H`).
 
 **RESPONSIVE:** mọi thứ (mét, vị trí cửa, vùng cắt NDI) **tự suy ra từ `config.json → walls`**.
 Sửa `px`/`hcm`/`doors` 1 tường → toàn bộ tự dãn. `PX_W = tổng px các tường`.
 
 ## 3. Cách chạy
-- **Full độ phân giải (máy show):** `npm start` (KHÔNG env) → 9335×832, renderScale 1.0.
+- **Full độ phân giải (máy show):** `npm start` (KHÔNG env) → 10350×1080, renderScale 1.0.
 - **Preview nhẹ (Mac dev):** `RENDER_SCALE=0.55 npm start` (env override renderScale, main.js:31).
 - **Chụp frame nội bộ (khỏi screenshot tốn tiền):** `SNAP_DIR=/path npm start` → lưu snap1..3.png (giây 8/11/15).
 - **Test OSC:** gửi `/tuongN/zone/cuaM` int `1`/`0` tới `127.0.0.1:7000`.

@@ -1,5 +1,5 @@
 // DOOR PORTALS — 5-wall panorama engine.
-// One seamless 9335x1080 canvas spanning 5 projection walls (pentagon room).
+// One seamless 10350x1080 canvas spanning 5 projection walls (pentagon room).
 // Orthographic camera over a scene measured in meters (x: 0..~24.6, y: 0..~2.85).
 // Each wall: its own LiDAR (OSC port), its own doors, its own overlay zone.
 
@@ -13,7 +13,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { makeSky, makeMeadow, makeFog, makeGrass, makeDummyDoors, makeFireflies, makeGroundGlow, makePetals, makeCelestial, makeAurora, makeTrees, makeLanterns, makeButterflies, makeStars } from './environment.js';
 import { makeFarTrees } from './decor.js';
 import { World } from './worlds.js';
-import { Door } from './door.js';
+import { Door, DOOR_W } from './door.js';
 import { initDebugOverlays } from './debug-overlay.js';
 import { initResPanel } from './res-panel.js';
 import { AudioEngine } from './audio.js';
@@ -26,12 +26,12 @@ const Q = cfg.quality ?? {};
 // wall's px width (fix a mis-measure) or the height in config.json re-scales the
 // whole scene (doors, trees, flowers, per-wall NDI crops) automatically:
 //   • total width  PX_W = sum of the walls' px
-//   • meter scale  M_PER_PX = (wall height in cm / 100) / PX_H   (real 220 cm)
+//   • meter scale  M_PER_PX = (wall height in cm / 100) / PX_H   (real 240 cm)
 //   • each wall's metres, door positions and NDI crop all follow.
-const wallsCfg = cfg.walls ?? [{ px: cfg.output?.width ?? 9336, hcm: 220, oscPort: 9001, doors: [0.5] }];
-const PX_H = cfg.output?.height ?? 832;
-const PX_W = wallsCfg.reduce((s, w) => s + (w.px || 0), 0) || (cfg.output?.width ?? 9336);
-const M_PER_PX = ((wallsCfg[0]?.hcm ?? 220) / 100) / PX_H;
+const wallsCfg = cfg.walls ?? [{ px: cfg.output?.width ?? 10350, hcm: 240, oscPort: 9001, doors: [0.5] }];
+const PX_H = cfg.output?.height ?? 1080;
+const PX_W = wallsCfg.reduce((s, w) => s + (w.px || 0), 0) || (cfg.output?.width ?? 10350);
+const M_PER_PX = ((wallsCfg[0]?.hcm ?? 240) / 100) / PX_H;
 
 let acc = 0;
 const walls = wallsCfg.map((wc, i) => {
@@ -160,6 +160,17 @@ for (const wall of walls) {
     wall.doors.push(door);
     doorIdx++;
   }
+  // Touch slack per door: generous by default, but shrunk so two zones on a
+  // narrow wall can never overlap (they'd both claim the same hand) and so a
+  // zone never runs past a wall edge — that edge is a physical room corner and
+  // belongs to the neighbouring wall's sensor.
+  wall.doors.forEach((d, i) => {
+    const prev = wall.doors[i - 1], next = wall.doors[i + 1];
+    let pad = Math.min(d.x - wall.x0, wall.x0 + wall.wm - d.x) - DOOR_W / 2;
+    if (prev) pad = Math.min(pad, (d.x - prev.x) / 2 - DOOR_W / 2);
+    if (next) pad = Math.min(pad, (next.x - d.x) / 2 - DOOR_W / 2);
+    d.hitPad = Math.min(0.45, pad);
+  });
   wall.activeDoor = null;
   // Stagger the attract teases so walls never sync up
   wall.nextTeaseT = 15 + wall.index * 9 + Math.random() * 10;
