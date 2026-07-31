@@ -40,12 +40,12 @@ File ra nằm ở `floor/out/` (đã .gitignore — **không commit**).
 | `--scale` | 1.0 | nhân vào w/h (0.25–0.35 để soi nhanh) |
 | `--fps --dur` | 30 60 | tốc độ khung / độ dài vòng lặp (giây) |
 | `--rot` | 0 | xoay ngũ giác trong khung (độ) |
-| `--fit` | 0.90 | ngũ giác chiếm bao nhiêu phần chiều cao khung (phần dư = bleed) |
+| `--fit` | 1.00 | ngũ giác chiếm bao nhiêu phần chiều cao khung (chỉ quyết định **bố cục**, không cắt hình) |
 | `--flip` | — | đảo chiều đi vòng quanh phòng (nếu on-site thấy tường ngược chiều) |
 | `--ring` | 2.30 | bán kính khoảng cỏ sáng giữa phòng (m) |
 | `--emit` | 0.55 | độ sáng của hoa (bắt theo sắc ấm có sẵn trong ảnh nền) |
 | `--bloom --bthresh` | 0.26 0.90 | cường độ / ngưỡng bloom |
-| `--bleed` | 0.22 | dải tràn ra ngoài mép ngũ giác trước khi tắt hẳn (m) |
+| `--bleed` | 0.22 | *(không dùng nữa — đã bỏ mask ngũ giác)* |
 | `--grain --exposure` | 0.010 1.0 | hạt phim / phơi sáng |
 | `--flies` | 150 | số đom đóm |
 | `--seed` | 20260731 | đổi seed = ra mạng rễ khác |
@@ -94,6 +94,10 @@ không phải mặt bằng. Đã fit 5 cạnh của nó, sai số < 1.7 px, ra 5
 
 Sàn phẳng nên **quad warp (homography) là đúng toán** — không cần mesh warp.
 
+> **Video KHÔNG có mask ngũ giác.** Chủ dự án chốt: hình **tràn kín cả khung 4K**, việc cắt theo
+> hình sàn để MadMapper lo. Ngũ giác giờ chỉ dùng để **đặt bố cục** (vạt cỏ sáng giữa phòng,
+> 9 vùng sáng ấm ở chân cửa) và để vẽ ảnh CALIB.
+
 ---
 
 ## Cấu trúc code
@@ -118,7 +122,7 @@ Sàn phẳng nên **quad warp (homography) là đúng toán** — không cần m
 * `meadow.jpg` — cùng kiểu nhưng là *night meadow: fine wild grass, clumps of tall grass tufts,
   small mossy rocks, tiny yellow and cream wildflowers, dew drops…*
 
-**Cách map:** mỗi ảnh phủ **đúng 1 lần** cả sàn (`sc = 8.60 m`) → 1 texel ≈ 1 pixel đầu ra,
+**Cách map:** mỗi ảnh (gốc **4096²**) phủ **đúng 1 lần cả khung 4K** (`sc = 15.20 m`) → 1 texel ≈ 1 pixel đầu ra,
 **không lát, không lặp, không nhoè**. Ảnh B xoay 2.05 rad để khác ảnh A. Trộn A↔B bằng noise +
 một số hạng theo bán kính ⇒ giữa phòng là vạt cỏ bạc (khoảng sáng hút mắt), quanh rìa là sàn rừng tối.
 
