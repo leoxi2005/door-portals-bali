@@ -3,8 +3,12 @@
 Video **loop** cho mặt sàn, chiếu qua MadMapper (output `FLOOR`, canvas **3840×2160**).
 Không chạy realtime, không nhận cảm biến — chỉ là 1 file video phát vòng.
 
-Concept nối tiếp 5 tường: **thảm rễ cổ thụ bò từ chân 9 cửa** vào một **hồ sáng** giữa phòng.
-Toàn bộ **procedural** (không dùng ảnh/texture ngoài), sinh bằng WebGL2 + render offline bằng Electron.
+Concept: **sàn rừng đêm dưới trăng** — nối tiếp thảm cỏ ở chân 5 bức tường. Nền là **2 ảnh 4K
+do higgsfield gen** (nhìn thẳng từ trên xuống: sàn rừng rêu + đồng cỏ bạc), còn **ánh sáng, gió,
+đom đóm, sương, 9 vùng sáng ấm ở chân cửa** đều do shader lo → vẫn loop khít tuyệt đối.
+
+> **Lịch sử: đã bỏ concept "rễ sáng + hồ giữa phòng"** (thuần procedural). Nó chạy được nhưng
+> chủ dự án chê không đẹp và lệch tông tường. Đừng làm lại.
 
 ---
 
@@ -38,8 +42,8 @@ File ra nằm ở `floor/out/` (đã .gitignore — **không commit**).
 | `--rot` | 0 | xoay ngũ giác trong khung (độ) |
 | `--fit` | 0.90 | ngũ giác chiếm bao nhiêu phần chiều cao khung (phần dư = bleed) |
 | `--flip` | — | đảo chiều đi vòng quanh phòng (nếu on-site thấy tường ngược chiều) |
-| `--pool` | 0.90 | bán kính hồ sáng (m) |
-| `--emit` | 0.15 | độ sáng mạch nhựa chạy trong rễ (0 = rễ hoàn toàn không phát sáng) |
+| `--ring` | 2.30 | bán kính khoảng cỏ sáng giữa phòng (m) |
+| `--emit` | 0.55 | độ sáng của hoa (bắt theo sắc ấm có sẵn trong ảnh nền) |
 | `--bloom --bthresh` | 0.26 0.90 | cường độ / ngưỡng bloom |
 | `--bleed` | 0.22 | dải tràn ra ngoài mép ngũ giác trước khi tắt hẳn (m) |
 | `--grain --exposure` | 0.010 1.0 | hạt phim / phơi sáng |
@@ -97,21 +101,42 @@ Sàn phẳng nên **quad warp (homography) là đúng toán** — không cần m
 | File | Vai trò |
 |:--|:--|
 | `geometry.js` | ngũ giác nội tiếp từ `walls`, 9 vị trí cửa, phép chiếu mét → pixel |
-| `roots.js` | sinh mạng rễ (deterministic theo seed) → bake texture RGBA:<br>**R** = vòm cao độ (rễ mảnh thì thấp), **G** = độ dài dọc rễ 0→1, **B** = quầng sáng, **A** = mạch nhựa |
+| `assets/forest.jpg`, `assets/meadow.jpg` | 2 ảnh nền 4K→2048 do higgsfield gen (xem "Ảnh nền" bên dưới) |
+| `roots.js`, `meadow.js` | **dead code** — của 2 concept đã bỏ, giữ lại để tham khảo |
 | `shaders.js` | GLSL: scene / đom đóm / bright / blur / composite |
 | `render.js` | WebGL2: FBO, bloom 2 tầng, đom đóm additive, đọc pixel → IPC |
 | `main.js` | Electron offline: đọc config, spawn ffmpeg, ghi frame thẳng vào stdin |
 | `calib.js` | ảnh CALIB |
 
+### Ảnh nền (higgsfield)
+
+2 ảnh sinh bằng `nano_banana_pro`, 1:1, resolution `4k` (4 credit/ảnh), rồi hạ xuống 2048 JPEG:
+
+* `forest.jpg` — *"Perfectly top-down aerial photograph… night forest floor of a Balinese jungle:
+  thick emerald moss, damp dark soil, scattered fallen leaves, small moss-covered stones, delicate
+  small ferns, tiny pale gold wildflowers, deep indigo-blue moonlight… flat orthographic overhead view"*
+* `meadow.jpg` — cùng kiểu nhưng là *night meadow: fine wild grass, clumps of tall grass tufts,
+  small mossy rocks, tiny yellow and cream wildflowers, dew drops…*
+
+**Cách map:** mỗi ảnh phủ **đúng 1 lần** cả sàn (`sc = 8.60 m`) → 1 texel ≈ 1 pixel đầu ra,
+**không lát, không lặp, không nhoè**. Ảnh B xoay 2.05 rad để khác ảnh A. Trộn A↔B bằng noise +
+một số hạng theo bán kính ⇒ giữa phòng là vạt cỏ bạc (khoảng sáng hút mắt), quanh rìa là sàn rừng tối.
+
+Nếu gen ảnh mới: giữ nguyên yêu cầu **"flat orthographic overhead view, no sky, no horizon,
+soft even light with no harsh shadow"** — có bóng đổ mạnh sẵn trong ảnh là hỏng phần chiếu sáng.
+
 ### Mô hình hình ảnh
 
-Cả nền đất **và** rễ dùng **chung một bản đồ cao độ** → dựng pháp tuyến giả → chiếu sáng bằng
-**một hệ đèn duy nhất**: trăng lạnh chiếu đều + hồ hắt cyan theo khoảng cách + **9 đèn ấm ở chân 9 cửa**.
-Nhờ vậy rễ nổi khối như vật thật thay vì "nét vẽ phát sáng".
+Ảnh nền chỉ đóng vai **albedo**. Pháp tuyến giả lấy từ vi phân độ sáng của chính ảnh → ánh trăng
+bắt được mặt cỏ. Trên đó chồng: mây trôi che trăng (vệt sáng lớn quét ngang sàn), trăng quay 1 vòng
+mỗi chu kỳ, **9 vùng sáng ấm ở chân 9 cửa**, hoa tự phát sáng (bắt theo sắc ấm sẵn có trong ảnh),
+sương đọng lấp lánh, sương trôi, đom đóm.
 
-**Bài học quan trọng:** mạch sáng trong rễ (`--emit`) rất dễ làm hỏng ảnh — chỉ cần hơi mạnh là
-toàn bộ rễ biến thành sợi trắng/xanh bệch, mất hẳn chất gỗ. Giữ `emit` ≤ 0.2, và chỉ rễ dày > 5.8 cm
-mới có mạch sáng (ngưỡng trong `roots.js`).
+**Gió:** không làm biến dạng hình học mà **uốn nhẹ toạ độ lấy mẫu ảnh** (±4 px ở 4K) theo sóng
+chạy ngang sàn ⇒ cỏ trong ảnh đung đưa như thật.
+
+**Bài học đã trả giá:** hai concept thuần procedural trước đó (rễ sáng, rồi đồng cỏ vẽ tay) đều
+bị chê. Nền **ảnh thật** là thứ tạo ra khác biệt — giống hệt cách 5 bức tường dùng PNG higgsfield.
 
 ### Loop liền mạch
 

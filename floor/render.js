@@ -69,17 +69,31 @@
     }
   }
 
-  /* ---------- texture rễ ---------- */
-  const bake = window.FloorRoots.bakeRoots(geo, { seed: P.seed, poolR: P.poolR });
-  log('rễ: ' + bake.segCount + ' đoạn');
-  const rootTex = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, rootTex);
-  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, bake.width, bake.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, bake.data);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const bake = { segCount: 0 };
+
+  function loadTex(src) {
+    return new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => {
+        const t = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+        gl.generateMipmap(gl.TEXTURE_2D);
+        const ext = gl.getExtension('EXT_texture_filter_anisotropic');
+        if (ext) gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT,
+          Math.min(8, gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
+        res(t);
+      };
+      img.onerror = () => rej(new Error('không nạp được ' + src));
+      img.src = src;
+    });
+  }
+  let texA = null, texB = null;
 
   /* ---------- đom đóm ---------- */
   const rnd = window.FloorRoots.mulberry32(P.seed ^ 0x5eed);
@@ -150,12 +164,12 @@
     gl.disable(gl.BLEND);
     gl.useProgram(pScene.p); setCommon(pScene);
     gl.uniform1f(pScene.u['uT'], t);
-    gl.uniform1f(pScene.u['uPoolR'], P.poolR);
+    gl.uniform1f(pScene.u['uRing'], P.ring);
     gl.uniform1f(pScene.u['uEmit'], P.emit);
     if (pScene.u['uDoor[0]']) gl.uniform2fv(pScene.u['uDoor[0]'], DOORM);
     if (pScene.u['uDoorPh[0]']) gl.uniform1fv(pScene.u['uDoorPh[0]'], DOORPH);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, rootTex);
-    gl.uniform1i(pScene.u['uRoot'], 0);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texA); gl.uniform1i(pScene.u['uTexA'], 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texB); gl.uniform1i(pScene.u['uTexB'], 1);
     drawQuad();
 
     // --- đom đóm (cộng sáng) ---
@@ -232,9 +246,11 @@
     await window.api.done();
   }
 
-  window.api.ready({
+  Promise.all([loadTex('assets/forest.jpg'), loadTex('assets/meadow.jpg')])
+    .then(([a, b]) => { texA = a; texB = b; window.api.ready({
     scale: geo.scale, area: geo.area, circumR: geo.circumR,
-    vertsPx: geo.vertsPx, doorsPx: geo.doorsPx, segCount: bake.segCount, hasFloat,
-  });
+      vertsPx: geo.vertsPx, doorsPx: geo.doorsPx, segCount: bake.segCount, hasFloat,
+    }); })
+    .catch((e) => window.api.fail(String(e && e.stack || e)));
   window.api.onGo(() => { run().catch((e) => window.api.fail(String(e && e.stack || e))); });
 })();

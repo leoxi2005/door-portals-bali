@@ -184,8 +184,14 @@ Sàn **không chạy realtime** — chỉ là **1 video loop 4K** đưa vào Mad
 Code render offline nằm ở **`floor/`**, đọc `config.json → walls` nên đổi số đo tường là sàn tự dãn theo.
 Chi tiết đầy đủ ở **`floor/README.md`** (đọc file đó trước khi sửa).
 
-- **Concept:** thảm rễ cổ thụ bò từ chân 9 cửa vào **hồ sáng** giữa phòng; nhựa sáng chảy vào tâm.
-  100% procedural (không texture ngoài). Loop 60 s liền mạch (đã kiểm bằng số).
+- **Concept (bản chốt):** **sàn rừng đêm dưới trăng** — nối tiếp thảm cỏ ở chân 5 tường.
+  Nền = **2 ảnh 4K do higgsfield gen** (`floor/assets/forest.jpg` + `meadow.jpg`, nhìn thẳng từ trên),
+  mỗi ảnh phủ đúng 1 lần cả sàn (1 texel ≈ 1 px, không lát/không nhoè); ánh sáng, gió, đom đóm,
+  sương, 9 vùng sáng ấm ở chân cửa đều do shader → vẫn loop 60 s khít tuyệt đối (đã kiểm bằng số).
+  Màu đã đo khớp tường: sàn mean RGB 57/67/81, thảm cỏ tường 61/61/70.
+- **⚠️ 2 concept ĐÃ BỎ, đừng làm lại:** (1) "rễ sáng + hồ giữa phòng", (2) đồng cỏ vẽ thuần procedural.
+  Cả hai đều bị chê không đẹp / lệch tông. Thứ tạo khác biệt là **ảnh nền thật** — đúng như tường
+  dùng PNG higgsfield.
 - **Chạy:** `./node_modules/.bin/electron floor/main.js --dur 60 --fps 30 --name floor`
   → `floor/out/floor.mov` (ProRes) + `.mp4`. Soi nhanh: `--still --scale 0.35 --at 0.0,0.33,0.66`.
 - **Warp:** `--calib` ra `floor/out/calib-1.png` → kéo 4 góc surface tới khi viền trắng trùng chân 5 tường
@@ -197,9 +203,10 @@ Chi tiết đầy đủ ở **`floor/README.md`** (đọc file đó trước khi
      không nằm trong vùng máy chiếu phủ**. **Phải kiểm tra on-site.**
   2. Giải ngược mặt bằng thật từ đa giác đó + 5 bề rộng tường: **không có nghiệm lồi** → đa giác trong
      MadMapper **không phải outline chính xác của sàn**, không dùng làm chuẩn.
-- **Bẫy thẩm mỹ đã trả giá 15 vòng render:** mạch sáng trong rễ (`--emit`) chỉ cần hơi mạnh là toàn bộ
-  rễ biến thành sợi trắng/xanh bệch, mất sạch chất gỗ. Giữ `emit ≤ 0.2`; rễ phải nổi khối bằng
-  **bản đồ cao độ + ánh sáng**, không phải bằng nét phát sáng.
+- **Prompt gen ảnh nền** (nano_banana_pro, 1:1, `4k`, 4 credit/ảnh) ghi đầy đủ trong `floor/README.md`.
+  Bắt buộc giữ *"flat orthographic overhead view, no sky, no horizon, soft even light with no harsh shadow"* —
+  ảnh có bóng đổ mạnh sẵn là hỏng phần chiếu sáng.
+- `roots.js` / `meadow.js` là **dead code** của 2 concept đã bỏ.
 - `floor/out/` đã .gitignore (file nặng, render lại được).
 
 ## 12. QUY TẮC TIẾT KIỆM CREDIT (quan trọng — đây là loop chỉnh visual)

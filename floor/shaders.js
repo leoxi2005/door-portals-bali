@@ -49,173 +49,124 @@ float ridge(vec3 p, int oct){ float v = fbm(p,oct); return pow(1.0-abs(v*2.0-1.0
 float bump(float ph, float w){ float f = fract(ph); float d = min(f, 1.0-f); return exp(-(d*d)/(2.0*w*w)); }
 `;
 
-  /* ---------------- SCENE ---------------- */
+  /* ---------------- SCENE: SÀN RỪNG ĐÊM (ảnh thật + ánh sáng procedural) ---------------- */
   const FS_SCENE = `#version 300 es
 precision highp float;
 in vec2 vUv;
 out vec4 outColor;
 ` + COMMON + `
-uniform sampler2D uRoot;
-uniform float uPoolR;
+uniform sampler2D uTexA;     // nền rừng rêu (nhìn từ trên)
+uniform sampler2D uTexB;     // đồng cỏ bạc
+uniform float uRing;
 uniform float uEmit;
-uniform vec2  uDoor[9];      // chân 9 cửa (mét)
-uniform float uDoorPh[9];    // pha nhịp thở riêng từng cửa
+uniform vec2  uDoor[9];
+uniform float uDoorPh[9];
 
-/* cao độ nền đất (dùng để dựng pháp tuyến giả -> nổi khối) */
-float terr(vec2 p){
-  return 0.62*fbm(vec3(p*1.15, 3.0), 4) + 0.38*fbm(vec3(p*4.60, 11.0), 3);
+mat2 rot2(float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c); }
+
+/* ảnh phủ đúng 1 lần cả sàn: 1 texel ~ 1 pixel, không lặp, không nhoè */
+vec3 ground(sampler2D T, vec2 p, float sc, float rotA){
+  return texture(T, rot2(rotA) * p / sc + 0.5).rgb;
 }
 
-/* lá rụng rải trên đất: mỗi ô 34 cm gieo 1 chiếc lá xoay ngẫu nhiên */
-float litter(vec2 p, out float seedOut){
-  float cov = 0.0; seedOut = 0.0;
-  vec2 ip = floor(p/0.19);
-  for(int j=-1;j<=1;j++){
-    for(int i=-1;i<=1;i++){
-      vec2 cc = ip + vec2(float(i), float(j));
-      float h1 = hash31(vec3(cc, 1.0)), h2 = hash31(vec3(cc, 2.0));
-      float h3 = hash31(vec3(cc, 3.0)), h4 = hash31(vec3(cc, 4.0));
-      if(h4 < 0.34) continue;
-      vec2 ctr = (cc + vec2(h1, h2))*0.19;
-      float a = h3*3.14159, ca = cos(a), sa = sin(a);
-      vec2 d = p - ctr;
-      d = vec2(d.x*ca - d.y*sa, d.x*sa + d.y*ca);
-      d /= vec2(0.052 + 0.030*h4, 0.021 + 0.014*h1);
-      float k = smoothstep(0.0, 0.42, 1.0 - dot(d,d));
-      if(k > cov){ cov = k; seedOut = h3; }
-    }
+/* 9 lối mòn (cỏ rạp) */
+float paths(vec2 p, float ring){
+  float best = 0.0;
+  for(int i=0;i<9;i++){
+    vec2 D = uDoor[i];
+    float L = max(0.001, length(D));
+    vec2 dir = -D/L, per = vec2(-dir.y, dir.x);
+    vec2 rel = p - D;
+    float t = dot(rel, dir), sN = dot(rel, per);
+    float wob = 0.34*sin(t*1.05 + float(i)*2.3) + 0.14*sin(t*2.3 - float(i));
+    float w   = 0.36 + 0.10*sin(t*0.75 + float(i));
+    float d   = (sN - wob)/w;
+    best = max(best, exp(-d*d*1.5)
+              * smoothstep(0.0, 0.55, t)
+              * smoothstep(ring*0.72, ring*1.30, length(p)));
   }
-  return cov;
-}
-
-/* cao độ tổng: đất + rễ (mét) */
-float rootH(vec2 uv){
-  vec4 t = texture(uRoot, uv);
-  return t.r*0.115 + t.b*0.012;                  // R = vòm cao độ đã bake sẵn
-}
-float heightAt(vec2 mp, vec2 uv){
-  return terr(mp)*0.048 + rootH(uv);
+  return best;
 }
 
 void main(){
   vec2 fc = gl_FragCoord.xy;
-  vec2 m  = (fc - uRes*0.5) / uScale;              // mét, y hướng lên
-  vec2 ruv = vec2(fc.x, uRes.y - fc.y) / uRes;     // texture rễ ở hệ ảnh (y xuống)
+  vec2 m  = (fc - uRes*0.5) / uScale;
+  float sd = sdPoly(m), din = -sd, r = length(m);
 
-  float sd  = sdPoly(m);
-  float din = -sd;
-  float r   = length(m);
-  float pr  = r/uPoolR;
+  /* ---- GIÓ: uốn nhẹ toạ độ lấy mẫu -> cỏ đung đưa ---- */
+  float wv = sin(TAU*(dot(m, vec2(0.82, 0.58))*0.235 - uT*2.0))
+           + 0.55*sin(TAU*(dot(m, vec2(-0.45, 0.89))*0.175 - uT*1.0));
+  float gust = 0.55 + 0.45*fbm(vec3(m*0.6 + vec2(cos(TAU*uT), sin(TAU*uT))*1.4, 9.0), 3);
+  vec2 warp = 0.016 * wv * gust * vec2(0.82, 0.58);
 
-  /* ---- PHÁP TUYẾN từ cao độ (đất + rễ chung 1 mặt) ---- */
-  float dM = 2.5/uScale;                 // bước lấy mẫu ~2.5 px
-  vec2  dU = vec2(2.5,2.5)/uRes;
-  float hR = heightAt(m + vec2(dM,0.0), ruv + vec2(dU.x, 0.0));
-  float hL = heightAt(m - vec2(dM,0.0), ruv - vec2(dU.x, 0.0));
-  float hU = heightAt(m + vec2(0.0,dM), ruv - vec2(0.0, dU.y));
-  float hD = heightAt(m - vec2(0.0,dM), ruv + vec2(0.0, dU.y));
-  vec3  N  = normalize(vec3(-(hR-hL)/(2.0*dM), -(hU-hD)/(2.0*dM), 1.0));
+  /* ---- NỀN: trộn 2 ảnh thật ---- */
+  float mixAB = smoothstep(0.34, 0.72, fbm(vec3(m*0.30, 51.0), 3));
+  mixAB = clamp(mixAB*0.60 + 0.90*smoothstep(uRing*2.45, uRing*0.50, r), 0.0, 1.0);
+  vec3 gA = ground(uTexA, m + warp, 8.60, 0.00);
+  vec3 gB = ground(uTexB, m + warp, 8.60, 2.05);
+  vec3 alb = mix(gA, gB, smoothstep(0.40, 0.60, mixAB));
+  alb = pow(clamp(alb*1.30, 0.0, 1.0), vec3(0.94));
+  float lg = dot(alb, vec3(0.299,0.587,0.114));
+  alb = mix(vec3(lg), alb, 0.62);                              // bớt xanh lá gắt
+  alb *= vec3(0.90, 0.97, 1.16);                               // ngả chàm cho khớp tường
 
-  /* ---- ÁNH SÁNG: trăng lạnh chiếu đều + hồ hắt cyan ở gần ---- */
-  vec3  Lmoon = normalize(vec3(0.40, 0.58, 0.70));
-  float dm    = max(dot(N, Lmoon), 0.0);
-  vec3  Lpool = normalize(vec3(-m, 0.95));
-  float dp    = max(dot(N, Lpool), 0.0);
-  float fall  = 1.0/(1.0 + r*r*0.20);
-  vec3  Hv    = normalize(Lpool + vec3(0.0,0.0,1.0));
-  float spec  = pow(max(dot(N, Hv), 0.0), 30.0);
+  float pth = paths(m, uRing);
+  alb = mix(alb, alb*vec3(1.10,1.06,1.02) + 0.030, pth*0.75);      // lối mòn: cỏ rạp, bạc hơn
 
-  /* ---- ALBEDO nền ---- */
-  vec2 w1 = m + 0.45*vec2(fbm(vec3(m*0.55, 1.70), 4), fbm(vec3(m*0.55, 8.30), 4));
-  float soil = fbm(vec3(w1*1.30, 3.10), 5);
-  float grit = fbm(vec3(m*22.0, 31.0), 2);
-  float pat  = smoothstep(0.36, 0.74, fbm(vec3(m*0.42, 21.0), 3));
+  /* ---- pháp tuyến giả từ độ sáng ảnh -> ánh trăng bắt được mặt cỏ ---- */
+  float lum = dot(alb, vec3(0.299,0.587,0.114));
+  vec2  dpx = vec2(2.0)/uRes;
+  float e2 = 2.0/uScale;
+  float lxp = dot(mix(ground(uTexA, m+warp+vec2(e2,0.0), 8.60, 0.0), ground(uTexB, m+warp+vec2(e2,0.0), 8.60, 2.05), mixAB), vec3(0.33));
+  float lxm = dot(mix(ground(uTexA, m+warp-vec2(e2,0.0), 8.60, 0.0), ground(uTexB, m+warp-vec2(e2,0.0), 8.60, 2.05), mixAB), vec3(0.33));
+  float lyp = dot(mix(ground(uTexA, m+warp+vec2(0.0,e2), 8.60, 0.0), ground(uTexB, m+warp+vec2(0.0,e2), 8.60, 2.05), mixAB), vec3(0.33));
+  float lym = dot(mix(ground(uTexA, m+warp-vec2(0.0,e2), 8.60, 0.0), ground(uTexB, m+warp-vec2(0.0,e2), 8.60, 2.05), mixAB), vec3(0.33));
+  vec3 N = normalize(vec3(-(lxp-lxm)*2.4, -(lyp-lym)*2.4, 1.0));
 
-  vec3 alb = mix(vec3(0.082,0.105,0.117), vec3(0.172,0.322,0.225), smoothstep(0.34,0.76,soil));
-  alb = mix(alb, vec3(0.300,0.212,0.135), pat*0.72);
-  alb *= 0.86 + 0.28*grit;
-  float hollow = fbm(vec3(m*0.62, 41.0), 3);
-  alb *= mix(0.52, 1.30, smoothstep(0.28, 0.78, hollow));      // hõm tối / gò sáng
+  /* ---- ÁNH SÁNG ---- */
+  vec2  cloudC = 3.4*vec2(cos(TAU*uT), sin(TAU*uT));
+  float moonPatch = smoothstep(0.30, 0.74, fbm(vec3((m - cloudC)*0.26, 88.0), 3));
+  float ma = TAU*uT;
+  vec3  Lmoon = normalize(vec3(0.58*cos(ma), 0.58*sin(ma), 0.80));
+  float dm = max(dot(N, Lmoon), 0.0);
+  vec3  moonC = vec3(0.72, 0.82, 1.05);
 
-  float ls; float leaf = litter(m, ls);
-  vec3 leafC = mix(vec3(0.330,0.202,0.101), vec3(0.243,0.277,0.142), ls);
-  alb = mix(alb, leafC, leaf*(0.42 + 0.45*smoothstep(3.6, 1.4, din*0.0 + r)));   // lá dồn về phía tường
+  float inRing = smoothstep(uRing*1.35, uRing*0.45, r);
+  vec3 col = alb * (0.42 + 0.55*moonPatch + 0.85*dm*(0.45+0.75*moonPatch));
+  col += alb * moonC * inRing * 0.26;                        // vũng trăng giữa phòng
+  col += moonC * pow(max(dot(N, normalize(Lmoon + vec3(0,0,1))), 0.0), 26.0) * 0.10*(0.4+0.6*moonPatch);
+  col *= mix(vec3(0.78,0.86,1.05), vec3(1.0), moonPatch);    // vùng tối ngả lam
 
-  vec4  R    = texture(uRoot, ruv);
-  float body = smoothstep(0.012, 0.075, R.r); float arc = R.g, halo = R.b, vein = R.a;
-  float bark = 0.55 + 0.85*fbm(vec3(m*46.0, 7.0), 3);
-  vec3  barkA = vec3(0.355, 0.212, 0.138) * bark;
-  alb = mix(alb, barkA, clamp(body*1.45, 0.0, 1.0));
-
-  float shine = mix(0.25, 1.0, leaf) * (0.4 + 0.6*smoothstep(0.4,0.8,soil));
-
-  /* ---- 9 VÙNG SÁNG ẤM HẮT RA TỪ CHÂN CỬA ---- */
-  vec3 doorLit = vec3(0.0);
-  float doorGlow = 0.0;
+  /* ---- 9 VÙNG SÁNG ẤM TỪ CHÂN CỬA ---- */
+  vec3 doorLit = vec3(0.0); float doorGlow = 0.0;
   for(int i=0;i<9;i++){
-    vec2  dv = uDoor[i] - m;
+    vec2 dv = uDoor[i] - m;
     float dd = length(dv);
-    float att = exp(-dd*0.95) * (0.62 + 0.38*sin(TAU*(uT + uDoorPh[i])));
-    vec3  Ld = normalize(vec3(dv, 0.55));
-    doorLit += vec3(1.00, 0.62, 0.28) * max(dot(N, Ld), 0.0) * att;
+    float att = exp(-dd*0.85) * (0.66 + 0.34*sin(TAU*(uT + uDoorPh[i])));
+    doorLit += vec3(1.00, 0.70, 0.40) * max(dot(N, normalize(vec3(dv, 0.60))), 0.0) * att;
     doorGlow += att;
   }
+  col += alb * doorLit * 1.70;
+  col += vec3(0.32, 0.18, 0.08) * doorGlow * 0.045;
 
-  /* ---- ĐỔ BÓNG / TÔ MÀU ---- */
-  vec3 moonC = vec3(0.300, 0.400, 0.600);
-  vec3 poolC = vec3(0.330, 0.640, 0.590);
-  vec3 ambC  = vec3(0.055, 0.078, 0.105)*(0.40 + 0.60*N.z);
-  vec3 col = alb * (moonC*(0.30 + 1.00*dm) + poolC*(dp*fall*1.55) + doorLit*2.10
-                    + ambC*(0.55 + 0.45*smoothstep(0.0,1.6,din)));
-  col += vec3(0.30, 0.15, 0.055) * doorGlow * 0.085;          // hơi sáng lan trên mặt đất
-  col += poolC * spec * shine * fall * 0.16;
-  col *= mix(0.78, 1.0, smoothstep(0.0, 1.20, din));
+  /* ---- HOA TRONG ẢNH TỰ PHÁT SÁNG (dày hơn dọc vòng giữa phòng) ---- */
+  float warm = clamp((alb.r - alb.b)*3.4, 0.0, 1.0) * smoothstep(0.16, 0.42, lum);
+  float ringB = exp(-pow((r - uRing)/0.65, 2.0));
+  float pulse = 0.55 + 0.45*sin(TAU*(uT + r*0.35));
+  col += vec3(1.00, 0.74, 0.32) * warm * uEmit * pulse * (0.80 + 1.60*ringB);
+  col += vec3(1.00, 0.78, 0.38) * ringB * 0.075;
 
-  /* ---- RÊU PHÁT QUANG ---- */
-  float sp = fbm(vec3(m*19.0, 5.0), 2);
-  float lich = smoothstep(0.735, 0.870, sp) * smoothstep(0.05, 0.75, din) * (1.0 - body)
-               * (0.55 + 0.85*smoothstep(3.2, 1.1, r));
-  col += vec3(0.030,0.105,0.085) * lich * (0.45 + 0.55*sin(TAU*(2.0*uT + sp*9.0)));
-
-  /* ---- MẠCH SÁNG TRONG RỄ ---- */
-  float drops = bump(arc*2.0 - uT*4.0, 0.070) + 0.7*bump(arc*2.0 - uT*4.0 + 0.5, 0.050);
-  float surge = bump(arc*1.0 - uT*1.0 - 0.15, 0.24);
-  float pulse = drops*0.85 + surge*0.75;
-  vec3 cWarm = vec3(1.000, 0.560, 0.190);
-  vec3 cMint = vec3(0.480, 0.980, 0.760);
-  vec3 rc = mix(cWarm, cMint, smoothstep(0.86, 1.00, arc));
-  float breath = 0.014 + 0.010*sin(TAU*(uT + arc*1.35));
-  float emit = vein*(breath + 3.20*pulse) + halo*body*(breath*0.25 + 0.42*pulse);
-  col += rc * emit * uEmit;
-
-  /* ---- HỒ SÁNG ---- */
-  float wob = 1.0 + 0.09*fbm(vec3(normalize(m + 1e-5)*2.2, 6.0), 3) - 0.045;
-  float prw = pr/wob;
-  float swirl = TAU*uT + 0.85/(0.45 + r);
-  float cs = cos(swirl), sn = sin(swirl);
-  vec2  pm = mat2(cs, -sn, sn, cs) * m;
-  float cau  = ridge(vec3(pm*2.10, 4.0), 4);
-  float cau2 = ridge(vec3(pm*4.60 + 3.0, 9.0), 3);
-  float liquid = smoothstep(1.02, 0.86, prw);
-  float ring   = smoothstep(1.01, 0.965, prw) - smoothstep(0.965, 0.90, prw);
-
-  float web = pow(cau, 2.2)*0.75 + pow(cau2, 3.0)*0.45;
-  col = mix(col, vec3(0.006, 0.022, 0.030), liquid*0.96);       // mặt nước tối
-  col += vec3(0.180, 0.880, 0.820) * liquid * (0.05 + 1.15*web)
-         * (0.86 + 0.14*sin(TAU*(2.0*uT)));                      // mạng caustic
-  col += vec3(0.640, 1.000, 0.950) * max(ring, 0.0) * 0.62;      // viền hồ mảnh & sáng
-  col += vec3(0.300, 0.940, 0.880) * liquid * pow(max(0.0, 1.0 - prw*1.20), 4.0) * 0.10;
-
-  /* ---- GỢN LAN RA ---- */
-  float rr = max(0.0, r - uPoolR);
-  float rip = pow(max(0.0, sin(TAU*(rr*0.72 - uT*3.0))), 6.0);
-  col += vec3(0.22,0.80,0.76) * rip * exp(-rr*0.38) * 0.115;
+  /* ---- SƯƠNG ĐỌNG LẤP LÁNH ---- */
+  float dw = fbm(vec3(m*34.0, 61.0), 2);
+  float dew = smoothstep(0.855, 0.965, dw) * smoothstep(0.10, 0.45, lum);
+  col += vec3(0.80,0.88,1.00) * dew * pow(max(0.0, sin(TAU*(3.0*uT + dw*11.0))), 3.0) * 0.85;
 
   /* ---- SƯƠNG TRÔI ---- */
-  vec2 dr = 0.42*vec2(cos(TAU*uT), sin(TAU*uT));
-  float mist = 0.62*fbm(vec3((m+dr)*0.60, 2.0), 4) + 0.38*fbm(vec3((m-dr)*1.10, 9.0), 3);
-  col += vec3(0.052,0.078,0.092) * smoothstep(0.32, 0.92, mist) * (0.45 + 0.55*smoothstep(0.0,1.2,din));
+  vec2 dr = 0.40*vec2(cos(TAU*uT), sin(TAU*uT));
+  float mist = 0.62*fbm(vec3((m+dr)*0.58, 2.0), 3) + 0.38*fbm(vec3((m-dr)*1.05, 9.0), 3);
+  col += vec3(0.085,0.100,0.145) * smoothstep(0.32, 0.92, mist) * (0.45 + 0.55*smoothstep(0.0,1.2,din));
 
+  col *= mix(0.55, 1.0, smoothstep(0.0, 1.35, din));         // tối dần về chân tường
   outColor = vec4(max(col, 0.0), 1.0);
 }`;
 
@@ -251,7 +202,7 @@ void main(){
   if(r > 1.0) discard;
   float core = exp(-r*14.0);
   float halo = exp(-r*2.6)*0.30;
-  outColor = vec4(vCol*(core + halo)*vBright, 1.0);
+  outColor = vec4(vCol*(core + halo)*vBright*1.6, 1.0);
 }`;
 
   /* ---------------- BLOOM ---------------- */
