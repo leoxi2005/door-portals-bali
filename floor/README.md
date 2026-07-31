@@ -40,7 +40,7 @@ File ra nằm ở `floor/out/` (đã .gitignore — **không commit**).
 | `--scale` | 1.0 | nhân vào w/h (0.25–0.35 để soi nhanh) |
 | `--fps --dur` | 30 60 | tốc độ khung / độ dài vòng lặp (giây) |
 | `--rot` | 0 | xoay ngũ giác trong khung (độ) |
-| `--fit` | 1.00 | ngũ giác chiếm bao nhiêu phần chiều cao khung (chỉ quyết định **bố cục**, không cắt hình) |
+| `--fit` | 1.00 | *(chỉ dùng khi tắt chế độ fill)* |
 | `--flip` | — | đảo chiều đi vòng quanh phòng (nếu on-site thấy tường ngược chiều) |
 | `--ring` | 2.30 | bán kính khoảng cỏ sáng giữa phòng (m) |
 | `--emit` | 0.55 | độ sáng của hoa (bắt theo sắc ấm có sẵn trong ảnh nền) |
@@ -122,9 +122,22 @@ Sàn phẳng nên **quad warp (homography) là đúng toán** — không cần m
 * `meadow.jpg` — cùng kiểu nhưng là *night meadow: fine wild grass, clumps of tall grass tufts,
   small mossy rocks, tiny yellow and cream wildflowers, dew drops…*
 
-**Cách map:** mỗi ảnh (gốc **4096²**) phủ **đúng 1 lần cả khung 4K** (`sc = 15.20 m`) → 1 texel ≈ 1 pixel đầu ra,
-**không lát, không lặp, không nhoè**. Ảnh B xoay 2.05 rad để khác ảnh A. Trộn A↔B bằng noise +
-một số hạng theo bán kính ⇒ giữa phòng là vạt cỏ bạc (khoảng sáng hút mắt), quanh rìa là sàn rừng tối.
+**TỈ LỆ VẬT LÝ — quan trọng nhất.** Khung 4K **chính là mặt bằng sàn** (`geometry.js`, chế độ `fill`):
+px/m tính riêng theo 2 trục (x = 3840/8.01 m, y = 2160/7.56 m) nên khi MadMapper kéo khung 16:9 lên
+sàn gần vuông thì hoa lá **tròn trở lại**, không bị bẹp.
+
+Ảnh nền lát ở **~2.2 m mỗi ô** ⇒ lá ~20 cm, dương xỉ ~55 cm, hoa ~4 cm — đúng cỡ khi có người
+đứng lên sàn. **Đây là lỗi đã mắc một lần:** ban đầu lát ở 15.2 m, một chiếc lá hoá ra to 1.3 m,
+chủ dự án chê ngay "người nhỏ mà lá cành hoa to, xấu quắc".
+
+**Chống lặp:** lát 2.2 m thì lộ lưới tuần hoàn → bẻ toạ độ lát bằng trường nhiễu chậm
+(`setWarpField`: xoay ±0.15 rad + dời ±0.25 ô, tần số 0.13–0.15 chu kỳ/m) ⇒ lưới bị xé thành hoa
+văn không tuần hoàn mà **không nhoè, không bóng ma**. Bẻ mạnh hơn (0.85 rad / 1.15 ô) thì cỏ xoáy
+như vân tay — đừng tăng. Trường bẻ tính **1 lần/pixel** rồi dùng lại cho cả 12 lần lấy mẫu ảnh
+(nếu tính lại mỗi lần thì chậm gấp ~3).
+
+Trộn A↔B bằng noise + một số hạng theo bán kính ⇒ giữa phòng là vạt cỏ bạc (khoảng sáng hút mắt),
+quanh rìa là sàn rừng tối.
 
 Nếu gen ảnh mới: giữ nguyên yêu cầu **"flat orthographic overhead view, no sky, no horizon,
 soft even light with no harsh shadow"** — có bóng đổ mạnh sẵn trong ảnh là hỏng phần chiếu sáng.

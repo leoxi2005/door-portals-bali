@@ -151,7 +151,7 @@
 
   function setCommon(o) {
     gl.uniform2f(o.u['uRes'], P.W, P.H);
-    gl.uniform1f(o.u['uScale'], geo.scale);
+    gl.uniform2f(o.u['uScaleXY'], geo.sx, geo.sy);
     if (o.u['uN[0]']) gl.uniform2fv(o.u['uN[0]'], new Float32Array(NN));
     if (o.u['uD[0]']) gl.uniform1fv(o.u['uD[0]'], new Float32Array(DD));
   }
@@ -175,7 +175,7 @@
     // --- đom đóm (cộng sáng) ---
     gl.useProgram(pFly.p);
     gl.uniform2f(pFly.u['uRes'], P.W, P.H);
-    gl.uniform1f(pFly.u['uScale'], geo.scale);
+    gl.uniform2f(pFly.u['uScaleXY'], geo.sx, geo.sy);
     gl.uniform1f(pFly.u['uT'], t);
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
     gl.bindVertexArray(vaoFly); gl.drawArrays(gl.POINTS, 0, NF);

@@ -17,7 +17,7 @@ void main(){
 #define TAU 6.28318530718
 uniform vec2  uRes;
 uniform float uT;
-uniform float uScale;      // px trên mét
+uniform vec2  uScaleXY;    // px trên mét (2 trục khác nhau)
 uniform vec2  uN[5];       // pháp tuyến ngoài của 5 cạnh
 uniform float uD[5];       // dot(đỉnh, pháp tuyến)
 
@@ -64,9 +64,15 @@ uniform float uDoorPh[9];
 
 mat2 rot2(float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c); }
 
-/* ảnh phủ đúng 1 lần cả sàn: 1 texel ~ 1 pixel, không lặp, không nhoè */
+/* Lát ảnh ở cỡ THẬT (mét) + bẻ cong toạ độ lát bằng trường nhiễu chậm
+   -> lưới lặp bị xé thành hoa văn không tuần hoàn, mà không bị nhoè/bóng ma. */
+float gWA; vec2 gWO;                       // trường bẻ — tính 1 lần/pixel
+void setWarpField(vec2 p){
+  gWA = 0.30*(fbm(vec3(p*0.13, 5.0), 3) - 0.5);
+  gWO = 0.50*vec2(fbm(vec3(p*0.15, 11.0), 3) - 0.5, fbm(vec3(p*0.15, 23.0), 3) - 0.5);
+}
 vec3 ground(sampler2D T, vec2 p, float sc, float rotA){
-  return texture(T, rot2(rotA) * p / sc + 0.5).rgb;
+  return texture(T, rot2(rotA + gWA) * (p/sc + gWO)).rgb;
 }
 
 /* 9 lối mòn (cỏ rạp) */
@@ -90,20 +96,24 @@ float paths(vec2 p, float ring){
 
 void main(){
   vec2 fc = gl_FragCoord.xy;
-  vec2 m  = (fc - uRes*0.5) / uScale;
+  vec2 m  = (fc - uRes*0.5) / uScaleXY;
   float sd = sdPoly(m), din = -sd, r = length(m);
 
   /* ---- GIÓ: uốn nhẹ toạ độ lấy mẫu -> cỏ đung đưa ---- */
   float wv = sin(TAU*(dot(m, vec2(0.82, 0.58))*0.235 - uT*2.0))
            + 0.55*sin(TAU*(dot(m, vec2(-0.45, 0.89))*0.175 - uT*1.0));
   float gust = 0.55 + 0.45*fbm(vec3(m*0.6 + vec2(cos(TAU*uT), sin(TAU*uT))*1.4, 9.0), 3);
-  vec2 warp = 0.016 * wv * gust * vec2(0.82, 0.58);
+  vec2 warp = 0.009 * wv * gust * vec2(0.82, 0.58);
 
   /* ---- NỀN: trộn 2 ảnh thật ---- */
   float mixAB = smoothstep(0.34, 0.72, fbm(vec3(m*0.30, 51.0), 3));
-  mixAB = clamp(mixAB*0.60 + 0.90*smoothstep(uRing*2.45, uRing*0.50, r), 0.0, 1.0);
-  vec3 gA = ground(uTexA, m + warp, 15.20, 0.00);
-  vec3 gB = ground(uTexB, m + warp, 15.20, 2.05);
+  mixAB = clamp(mixAB*0.62 + 0.75*smoothstep(uRing*2.30, uRing*0.55, r), 0.0, 1.0);
+  vec2 q = m + warp;
+  setWarpField(m);
+  float n1 = fbm(vec3(m*0.42, 33.0), 3);
+  float n2 = fbm(vec3(m*0.38, 77.0), 3);
+  vec3 gA = mix(ground(uTexA, q, 2.20, 0.00), ground(uTexA, q, 2.66, 2.10), smoothstep(0.44, 0.56, n1));
+  vec3 gB = mix(ground(uTexB, q, 2.32, 0.70), ground(uTexB, q, 2.78, 3.45), smoothstep(0.44, 0.56, n2));
   vec3 alb = mix(gA, gB, smoothstep(0.40, 0.60, mixAB));
   alb = pow(clamp(alb*1.30, 0.0, 1.0), vec3(0.94));
   float lg = dot(alb, vec3(0.299,0.587,0.114));
@@ -116,11 +126,11 @@ void main(){
   /* ---- pháp tuyến giả từ độ sáng ảnh -> ánh trăng bắt được mặt cỏ ---- */
   float lum = dot(alb, vec3(0.299,0.587,0.114));
   vec2  dpx = vec2(2.0)/uRes;
-  float e2 = 2.0/uScale;
-  float lxp = dot(mix(ground(uTexA, m+warp+vec2(e2,0.0), 15.20, 0.0), ground(uTexB, m+warp+vec2(e2,0.0), 15.20, 2.05), mixAB), vec3(0.33));
-  float lxm = dot(mix(ground(uTexA, m+warp-vec2(e2,0.0), 15.20, 0.0), ground(uTexB, m+warp-vec2(e2,0.0), 15.20, 2.05), mixAB), vec3(0.33));
-  float lyp = dot(mix(ground(uTexA, m+warp+vec2(0.0,e2), 15.20, 0.0), ground(uTexB, m+warp+vec2(0.0,e2), 15.20, 2.05), mixAB), vec3(0.33));
-  float lym = dot(mix(ground(uTexA, m+warp-vec2(0.0,e2), 15.20, 0.0), ground(uTexB, m+warp-vec2(0.0,e2), 15.20, 2.05), mixAB), vec3(0.33));
+  vec2 e2 = 2.0/uScaleXY;
+  float lxp = dot(mix(ground(uTexA, q+vec2(e2.x,0.0), 2.20, 0.0), ground(uTexB, q+vec2(e2.x,0.0), 2.32, 0.7), mixAB), vec3(0.33));
+  float lxm = dot(mix(ground(uTexA, q-vec2(e2.x,0.0), 2.20, 0.0), ground(uTexB, q-vec2(e2.x,0.0), 2.32, 0.7), mixAB), vec3(0.33));
+  float lyp = dot(mix(ground(uTexA, q+vec2(0.0,e2.y), 2.20, 0.0), ground(uTexB, q+vec2(0.0,e2.y), 2.32, 0.7), mixAB), vec3(0.33));
+  float lym = dot(mix(ground(uTexA, q-vec2(0.0,e2.y), 2.20, 0.0), ground(uTexB, q-vec2(0.0,e2.y), 2.32, 0.7), mixAB), vec3(0.33));
   vec3 N = normalize(vec3(-(lxp-lxm)*2.4, -(lyp-lym)*2.4, 1.0));
 
   /* ---- ÁNH SÁNG ---- */
@@ -133,7 +143,7 @@ void main(){
 
   float inRing = smoothstep(uRing*1.35, uRing*0.45, r);
   vec3 col = alb * (0.42 + 0.55*moonPatch + 0.85*dm*(0.45+0.75*moonPatch));
-  col += alb * moonC * inRing * 0.26;                        // vũng trăng giữa phòng
+  col += alb * moonC * inRing * 0.16;                        // vũng trăng giữa phòng
   col += moonC * pow(max(dot(N, normalize(Lmoon + vec3(0,0,1))), 0.0), 26.0) * 0.10*(0.4+0.6*moonPatch);
   col *= mix(vec3(0.78,0.86,1.05), vec3(1.0), moonPatch);    // vùng tối ngả lam
 
@@ -177,14 +187,14 @@ precision highp float;
 layout(location=0) in vec4 aBase;   // x,y (mét)  z,w = biên độ quỹ đạo
 layout(location=1) in vec4 aOrb;    // tần số 1,2 (nguyên) + pha 1,2
 layout(location=2) in vec4 aLook;   // size(px), độ sáng, hue, pha nhấp nháy
-uniform vec2 uRes; uniform float uT; uniform float uScale;
+uniform vec2 uRes; uniform float uT; uniform vec2 uScaleXY;
 out vec3 vCol; out float vBright;
 #define TAU 6.28318530718
 void main(){
   float a1 = TAU*(aOrb.x*uT + aOrb.z);
   float a2 = TAU*(aOrb.y*uT + aOrb.w);
   vec2 p = aBase.xy + aBase.z*vec2(cos(a1), sin(a1)) + aBase.w*vec2(cos(a2), sin(a2*1.0));
-  vec2 px = p*uScale + uRes*0.5;
+  vec2 px = p*uScaleXY + uRes*0.5;
   gl_Position = vec4(px/uRes*2.0 - 1.0, 0.0, 1.0);
   gl_PointSize = aLook.x;
   vec3 warm = vec3(1.00, 0.72, 0.30), mint = vec3(0.55, 1.00, 0.80);
@@ -238,7 +248,7 @@ uniform float uBloom, uBleed, uGrain, uExposure;
 
 void main(){
   vec2 fc = gl_FragCoord.xy;
-  vec2 m  = (fc - uRes*0.5) / uScale;
+  vec2 m  = (fc - uRes*0.5) / uScaleXY;
   vec3 c  = texture(uScene, vUv).rgb;
   c += (texture(uBloomA, vUv).rgb*0.62 + texture(uBloomB, vUv).rgb*0.38) * uBloom;
 

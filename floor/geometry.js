@@ -38,7 +38,7 @@
    *   flip = đảo chiều đi vòng quanh phòng (nếu on-site thấy tường ngược chiều)
    */
   function buildGeometry(walls, opts) {
-    const o = Object.assign({ W: 3840, H: 2160, rotDeg: 0, fit: 0.90, flip: false }, opts || {});
+    const o = Object.assign({ W: 3840, H: 2160, rotDeg: 0, fit: 1.0, flip: false, fill: true }, opts || {});
     const sides = walls.map((w) => w.wcm / 100);
     const src = cyclicPolygon(sides);
 
@@ -53,11 +53,15 @@
 
     const xs = verts.map((p) => p[0]), ys = verts.map((p) => p[1]);
     const bw = Math.max(...xs) - Math.min(...xs), bh = Math.max(...ys) - Math.min(...ys);
-    const scale = Math.min((o.W * o.fit) / bw, (o.H * o.fit) / bh); // px trên mét
+    // fill = khung 4K CHÍNH LÀ mặt bằng sàn -> px/m khác nhau theo 2 trục, để khi
+    // MadMapper kéo khung 16:9 lên sàn gần vuông thì mọi thứ tròn trở lại
+    const sx = o.fill ? (o.W / bw) : Math.min((o.W * o.fit) / bw, (o.H * o.fit) / bh);
+    const sy = o.fill ? (o.H / bh) : sx;
+    const scale = Math.sqrt(sx * sy);                              // px trên mét (trung bình hình học)
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
 
     // mét -> pixel (y lật xuống cho toạ độ ảnh)
-    const toPx = (p) => [o.W / 2 + (p[0] - cx) * scale, o.H / 2 - (p[1] - cy) * scale];
+    const toPx = (p) => [o.W / 2 + (p[0] - cx) * sx, o.H / 2 - (p[1] - cy) * sy];
 
     // 9 cửa: mỗi tường i nằm giữa verts[i] và verts[i+1]
     const doors = [];
@@ -81,7 +85,7 @@
     });
 
     return {
-      W: o.W, H: o.H, scale, verts, vertsPx: verts.map(toPx), doors,
+      W: o.W, H: o.H, scale, sx, sy, verts, vertsPx: verts.map(toPx), doors,
       doorsPx: doors.map((d) => toPx(d.p)), toPx,
       area: src.area, circumR: src.R, sides, order,
       bbox: [bw, bh],
