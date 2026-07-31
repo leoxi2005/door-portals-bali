@@ -178,6 +178,30 @@ Cửa rộng 98 cm; vùng chạm = cửa + pad 2 bên (mặc định 45 cm, tự
 - Sửa độ phân giải bằng panel **R** → cần **khởi động lại app** để áp dụng.
 - Nếu tường rìa méo khi chiếu thật → nâng lên **5 camera chính diện** (ARCHITECTURE-5WALL.md §3).
 
+## 11b. VISUAL SÀN (`floor/`) — MỚI 2026-07-31
+
+Sàn **không chạy realtime** — chỉ là **1 video loop 4K** đưa vào MadMapper (output `FLOOR`, 3840×2160).
+Code render offline nằm ở **`floor/`**, đọc `config.json → walls` nên đổi số đo tường là sàn tự dãn theo.
+Chi tiết đầy đủ ở **`floor/README.md`** (đọc file đó trước khi sửa).
+
+- **Concept:** thảm rễ cổ thụ bò từ chân 9 cửa vào **hồ sáng** giữa phòng; nhựa sáng chảy vào tâm.
+  100% procedural (không texture ngoài). Loop 60 s liền mạch (đã kiểm bằng số).
+- **Chạy:** `./node_modules/.bin/electron floor/main.js --dur 60 --fps 30 --name floor`
+  → `floor/out/floor.mov` (ProRes) + `.mp4`. Soi nhanh: `--still --scale 0.35 --at 0.0,0.33,0.66`.
+- **Warp:** `--calib` ra `floor/out/calib-1.png` → kéo 4 góc surface tới khi viền trắng trùng chân 5 tường
+  (sàn phẳng ⇒ **quad warp là đúng toán**, không cần mesh).
+- **Hình học:** 5 bề rộng tường không đủ xác định ngũ giác → dùng **ngũ giác nội tiếp** (duy nhất từ 5 cạnh):
+  R = 4.005 m, **34.58 m²**, bbox 8.01×7.56 m, góc 116.3/122.7/102.3/108.1/90.7°, **2.57 px/cm**.
+- **⚠️ Hai phát hiện về ảnh mapping của chủ dự án** (đừng phân tích lại):
+  1. Đa giác `FLOOR` trong AdvancedOutput **thò xuống dưới đáy canvas ~1100 px** → khoảng **1/3 sàn
+     không nằm trong vùng máy chiếu phủ**. **Phải kiểm tra on-site.**
+  2. Giải ngược mặt bằng thật từ đa giác đó + 5 bề rộng tường: **không có nghiệm lồi** → đa giác trong
+     MadMapper **không phải outline chính xác của sàn**, không dùng làm chuẩn.
+- **Bẫy thẩm mỹ đã trả giá 15 vòng render:** mạch sáng trong rễ (`--emit`) chỉ cần hơi mạnh là toàn bộ
+  rễ biến thành sợi trắng/xanh bệch, mất sạch chất gỗ. Giữ `emit ≤ 0.2`; rễ phải nổi khối bằng
+  **bản đồ cao độ + ánh sáng**, không phải bằng nét phát sáng.
+- `floor/out/` đã .gitignore (file nặng, render lại được).
+
 ## 12. QUY TẮC TIẾT KIỆM CREDIT (quan trọng — đây là loop chỉnh visual)
 - **Screenshot/render là thứ đốt tiền nhất.** Dùng `SNAP_DIR` chụp frame nội bộ → **downscale** → chỉ đưa **1 ảnh** khi cần quyết định. **Gộp nhiều chỉnh vào 1 lần** rồi mới chụp.
 - **Mẹo dùng SNAP (đỡ mò lại):**

@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>floor render</title>
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{width:100%;height:auto;display:block}</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  window.FLOOR_PARAMS = JSON.parse(decodeURIComponent(location.hash.slice(1)));
+</script>
+<script src="geometry.js"></script>
+<script src="roots.js"></script>
+<script src="shaders.js"></script>
+<script>
+  window.addEventListener('error', (e) => { try { window.api.fail(String(e.error && e.error.stack || e.message)); } catch (_) {} });
+  const src = window.FLOOR_PARAMS.mode === 'calib' ? 'calib.js' : 'render.js';
+  const s = document.createElement('script'); s.src = src; document.body.appendChild(s);
+</script>
+</body>
+</html>
