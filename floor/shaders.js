@@ -117,8 +117,8 @@ void main(){
   vec3 alb = mix(gA, gB, smoothstep(0.40, 0.60, mixAB));
   alb = pow(clamp(alb*1.30, 0.0, 1.0), vec3(0.94));
   float lg = dot(alb, vec3(0.299,0.587,0.114));
-  alb = mix(vec3(lg), alb, 0.62);                              // bớt xanh lá gắt
-  alb *= vec3(0.90, 0.97, 1.16);                               // ngả chàm cho khớp tường
+  alb = mix(vec3(lg), alb, 0.72);                              // bớt xanh lá gắt
+  alb *= vec3(1.02, 0.895, 1.005);                             // cân R:G:B khớp thảm cỏ chân tường
 
   float pth = paths(m, uRing);
   alb = mix(alb, alb*vec3(1.10,1.06,1.02) + 0.030, pth*0.75);      // lối mòn: cỏ rạp, bạc hơn
@@ -162,8 +162,10 @@ void main(){
   /* ---- HOA TRONG ẢNH TỰ PHÁT SÁNG (dày hơn dọc vòng giữa phòng) ---- */
   float warm = clamp((alb.r - alb.b)*3.4, 0.0, 1.0) * smoothstep(0.16, 0.42, lum);
   float ringB = exp(-pow((r - uRing)/0.65, 2.0));
+  vec2  vgf = (fc/uRes - 0.5)*2.0;
+  float edgeW = smoothstep(0.30, 1.20, dot(vgf, vgf));      // vành ngoài khung = sát chân tường
   float pulse = 0.55 + 0.45*sin(TAU*(uT + r*0.35));
-  col += vec3(1.00, 0.74, 0.32) * warm * uEmit * pulse * (0.80 + 1.60*ringB);
+  col += vec3(1.00, 0.74, 0.32) * warm * uEmit * pulse * (0.80 + 1.60*ringB + 1.45*edgeW);
   col += vec3(1.00, 0.78, 0.38) * ringB * 0.075;
 
   /* ---- SƯƠNG ĐỌNG LẤP LÁNH ---- */
@@ -177,7 +179,10 @@ void main(){
   col += vec3(0.085,0.100,0.145) * smoothstep(0.32, 0.92, mist) * 0.85;
 
   vec2 vg = (fc/uRes - 0.5) * vec2(2.0, 2.0);
-  col *= mix(0.62, 1.0, smoothstep(1.35, 0.15, dot(vg, vg)));   // vignette theo khung 4K
+  float vd = dot(vg, vg);
+  col *= mix(0.63, 1.0, smoothstep(1.35, 0.15, vd));            // vignette nhẹ theo khung 4K
+  col += vec3(0.010, 0.026, 0.031) * smoothstep(0.30, 1.15, vd); // mép khung ngả xanh-lam
+                                                                 // cho liền với chân tường
   outColor = vec4(max(col, 0.0), 1.0);
 }`;
 
