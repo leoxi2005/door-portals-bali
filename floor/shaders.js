@@ -102,8 +102,8 @@ void main(){
   /* ---- NỀN: trộn 2 ảnh thật ---- */
   float mixAB = smoothstep(0.34, 0.72, fbm(vec3(m*0.30, 51.0), 3));
   mixAB = clamp(mixAB*0.60 + 0.90*smoothstep(uRing*2.45, uRing*0.50, r), 0.0, 1.0);
-  vec3 gA = ground(uTexA, m + warp, 8.60, 0.00);
-  vec3 gB = ground(uTexB, m + warp, 8.60, 2.05);
+  vec3 gA = ground(uTexA, m + warp, 15.20, 0.00);
+  vec3 gB = ground(uTexB, m + warp, 15.20, 2.05);
   vec3 alb = mix(gA, gB, smoothstep(0.40, 0.60, mixAB));
   alb = pow(clamp(alb*1.30, 0.0, 1.0), vec3(0.94));
   float lg = dot(alb, vec3(0.299,0.587,0.114));
@@ -117,10 +117,10 @@ void main(){
   float lum = dot(alb, vec3(0.299,0.587,0.114));
   vec2  dpx = vec2(2.0)/uRes;
   float e2 = 2.0/uScale;
-  float lxp = dot(mix(ground(uTexA, m+warp+vec2(e2,0.0), 8.60, 0.0), ground(uTexB, m+warp+vec2(e2,0.0), 8.60, 2.05), mixAB), vec3(0.33));
-  float lxm = dot(mix(ground(uTexA, m+warp-vec2(e2,0.0), 8.60, 0.0), ground(uTexB, m+warp-vec2(e2,0.0), 8.60, 2.05), mixAB), vec3(0.33));
-  float lyp = dot(mix(ground(uTexA, m+warp+vec2(0.0,e2), 8.60, 0.0), ground(uTexB, m+warp+vec2(0.0,e2), 8.60, 2.05), mixAB), vec3(0.33));
-  float lym = dot(mix(ground(uTexA, m+warp-vec2(0.0,e2), 8.60, 0.0), ground(uTexB, m+warp-vec2(0.0,e2), 8.60, 2.05), mixAB), vec3(0.33));
+  float lxp = dot(mix(ground(uTexA, m+warp+vec2(e2,0.0), 15.20, 0.0), ground(uTexB, m+warp+vec2(e2,0.0), 15.20, 2.05), mixAB), vec3(0.33));
+  float lxm = dot(mix(ground(uTexA, m+warp-vec2(e2,0.0), 15.20, 0.0), ground(uTexB, m+warp-vec2(e2,0.0), 15.20, 2.05), mixAB), vec3(0.33));
+  float lyp = dot(mix(ground(uTexA, m+warp+vec2(0.0,e2), 15.20, 0.0), ground(uTexB, m+warp+vec2(0.0,e2), 15.20, 2.05), mixAB), vec3(0.33));
+  float lym = dot(mix(ground(uTexA, m+warp-vec2(0.0,e2), 15.20, 0.0), ground(uTexB, m+warp-vec2(0.0,e2), 15.20, 2.05), mixAB), vec3(0.33));
   vec3 N = normalize(vec3(-(lxp-lxm)*2.4, -(lyp-lym)*2.4, 1.0));
 
   /* ---- ÁNH SÁNG ---- */
@@ -164,9 +164,10 @@ void main(){
   /* ---- SƯƠNG TRÔI ---- */
   vec2 dr = 0.40*vec2(cos(TAU*uT), sin(TAU*uT));
   float mist = 0.62*fbm(vec3((m+dr)*0.58, 2.0), 3) + 0.38*fbm(vec3((m-dr)*1.05, 9.0), 3);
-  col += vec3(0.085,0.100,0.145) * smoothstep(0.32, 0.92, mist) * (0.45 + 0.55*smoothstep(0.0,1.2,din));
+  col += vec3(0.085,0.100,0.145) * smoothstep(0.32, 0.92, mist) * 0.85;
 
-  col *= mix(0.55, 1.0, smoothstep(0.0, 1.35, din));         // tối dần về chân tường
+  vec2 vg = (fc/uRes - 0.5) * vec2(2.0, 2.0);
+  col *= mix(0.62, 1.0, smoothstep(1.35, 0.15, dot(vg, vg)));   // vignette theo khung 4K
   outColor = vec4(max(col, 0.0), 1.0);
 }`;
 
@@ -247,9 +248,6 @@ void main(){
 
   float g = hash31(vec3(fc, floor(uT*1800.0)));
   c += (g - 0.5) * uGrain;
-
-  float sd = sdPoly(m);
-  c *= 1.0 - smoothstep(0.0, uBleed, sd);                   // fade ra ngoài ngũ giác
 
   outColor = vec4(max(c, 0.0), 1.0);
 }`;

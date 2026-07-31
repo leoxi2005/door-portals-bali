@@ -32,7 +32,7 @@ const P = {
   fps: num('fps', 30),
   dur: num('dur', 60),
   rot: num('rot', 0),
-  fit: num('fit', 0.90),
+  fit: num('fit', 1.00),
   flip: flag('flip'),
   seed: num('seed', 20260731),
   ring: num('ring', 2.30),
