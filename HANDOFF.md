@@ -178,26 +178,56 @@ Cửa rộng 98 cm; vùng chạm = cửa + pad 2 bên (mặc định 45 cm, tự
 - Sửa độ phân giải bằng panel **R** → cần **khởi động lại app** để áp dụng.
 - Nếu tường rìa méo khi chiếu thật → nâng lên **5 camera chính diện** (ARCHITECTURE-5WALL.md §3).
 
-## 11b. VISUAL SÀN (`floor/`) — MỚI 2026-07-31
+## 11b. VISUAL SÀN (`floor/`) — ĐÃ GIAO 2026-08-01
 
 Sàn **không chạy realtime** — chỉ là **1 video loop 4K** đưa vào MadMapper (output `FLOOR`, 3840×2160).
 Code render offline nằm ở **`floor/`**, đọc `config.json → walls` nên đổi số đo tường là sàn tự dãn theo.
 Chi tiết đầy đủ ở **`floor/README.md`** (đọc file đó trước khi sửa).
 
+**✅ ĐÃ GIAO — file cuối nằm ở `~/Downloads/DOOR-PORTALS-FLOOR/`:**
+`floor.mov` (ProRes 422 HQ, 6.4 GB) + `floor.mp4` (415 MB) + `calib-1.png`.
+Cả 3 đều **3840×2160, 30 fps, loop 60.000 s = 1800 frame** (đã ffprobe xác nhận).
+
 - **Concept (bản chốt):** **sàn rừng đêm dưới trăng** — nối tiếp thảm cỏ ở chân 5 tường.
-  Nền = **2 ảnh 4K do higgsfield gen** (`floor/assets/forest.jpg` + `meadow.jpg`, nhìn thẳng từ trên),
-  mỗi ảnh phủ đúng 1 lần cả sàn (1 texel ≈ 1 px, không lát/không nhoè); ánh sáng, gió, đom đóm,
-  sương, 9 vùng sáng ấm ở chân cửa đều do shader → vẫn loop 60 s khít tuyệt đối (đã kiểm bằng số).
-  Màu đã đo khớp tường: sàn mean RGB 57/67/81, thảm cỏ tường 61/61/70.
+  Nền = **2 ảnh 4096² do higgsfield gen** (`floor/assets/forest.jpg` + `meadow.jpg`, nhìn thẳng từ trên);
+  ánh sáng, gió, đom đóm, sương, 9 vùng sáng ấm ở chân cửa đều do shader → loop khít tuyệt đối
+  (đã kiểm bằng số: mối nối ≈ đúng bằng bước 1 frame).
+- **KHÔNG có mask ngũ giác** — hình tràn kín cả khung 4K, việc cắt theo hình sàn để MadMapper lo
+  (chủ dự án chốt). Ngũ giác giờ chỉ dùng để đặt **bố cục** + vẽ ảnh CALIB.
 - **⚠️ 2 concept ĐÃ BỎ, đừng làm lại:** (1) "rễ sáng + hồ giữa phòng", (2) đồng cỏ vẽ thuần procedural.
   Cả hai đều bị chê không đẹp / lệch tông. Thứ tạo khác biệt là **ảnh nền thật** — đúng như tường
   dùng PNG higgsfield.
-- **Chạy:** `./node_modules/.bin/electron floor/main.js --dur 60 --fps 30 --name floor`
-  → `floor/out/floor.mov` (ProRes) + `.mp4`. Soi nhanh: `--still --scale 0.35 --at 0.0,0.33,0.66`.
+
+- **⚠️ TỈ LỆ VẬT LÝ — lỗi đã mắc, đừng lặp:** ban đầu lát ảnh nền ở 15.2 m nên **1 chiếc lá to 1.3 m**,
+  bị chê ngay *"người nhỏ mà lá cành hoa to, xấu quắc"*. Nay:
+  - `geometry.js` chạy chế độ **`fill`**: khung 4K **CHÍNH LÀ** mặt bằng sàn, px/m tính **riêng theo
+    2 trục** (x = 3840/8.01 m, y = 2160/7.56 m) → MadMapper kéo khung 16:9 lên sàn gần vuông thì
+    hoa lá **tròn trở lại**, không bẹp 1.7 lần.
+  - Ảnh nền lát **~2.2 m/ô** ⇒ lá ~20 cm, dương xỉ ~55 cm, bụi cỏ ~25 cm, hoa ~4 cm.
+  - Lát nhỏ thì lộ lưới lặp → bẻ toạ độ lát bằng trường nhiễu chậm (`setWarpField`). Bẻ mạnh quá
+    (0.85 rad) thì cỏ xoáy như vân tay — giữ ở 0.30 rad / 0.50 ô. Trường bẻ tính **1 lần/pixel**.
+
+- **⚠️ CÂN MÀU KHỚP TƯỜNG — làm bằng số đo, không cảm tính.** Chụp tường thật bằng `SNAP_DIR` rồi đo:
+
+  | | sáng | hue | sat | RGB |
+  |:--|--:|--:|--:|:--|
+  | tường — dải cỏ chân | 64.2 | 220.7° | 0.30 | 60/62/71 |
+  | sàn (bản cuối) | 68.4 | 218.2° | 0.27 | 60/67/78 |
+  | tường — sát đáy (chỗ chạm sàn) | 54.6 | | | 40/56/68 |
+  | sàn — mép khung (bản cuối) | 55.8 | | | 46/55/66 |
+
+  Bẫy: tường có **R ≈ G**, sàn lúc đầu **G cao hơn R tới 10** → ngả xanh lá, chỏi ngay.
+  Sửa ở `shaders.js`: `alb = mix(vec3(lg), alb, 0.72)` + `alb *= vec3(1.02, 0.895, 1.005)`.
+  Mép khung còn được ngả xanh-lam + hoa vành ngoài ánh vàng mạnh hơn để nối tiếp dải hoa vàng
+  chạy dọc chân tường.
+- **Chạy lại:** `./node_modules/.bin/electron floor/main.js --dur 60 --fps 30 --name floor`
+  → `floor/out/floor.mov` + `.mp4` (~4,5 phút ở M4 Max, ~7 fps). Soi nhanh: `--still --scale 0.35 --at 0.42`.
+  ⚠️ **Chạy foreground**, đừng `nohup ... &` rồi chờ bằng vòng lặp nền — đã 2 lần bị kill giữa chừng,
+  ra file thiếu frame (1760/1800, 671/1800). Luôn `ffprobe` kiểm `nb_frames=1800` trước khi giao.
 - **Warp:** `--calib` ra `floor/out/calib-1.png` → kéo 4 góc surface tới khi viền trắng trùng chân 5 tường
   (sàn phẳng ⇒ **quad warp là đúng toán**, không cần mesh).
 - **Hình học:** 5 bề rộng tường không đủ xác định ngũ giác → dùng **ngũ giác nội tiếp** (duy nhất từ 5 cạnh):
-  R = 4.005 m, **34.58 m²**, bbox 8.01×7.56 m, góc 116.3/122.7/102.3/108.1/90.7°, **2.57 px/cm**.
+  R = 4.005 m, **34.58 m²**, bbox 8.01×7.56 m, góc 116.3/122.7/102.3/108.1/90.7°.
 - **⚠️ Hai phát hiện về ảnh mapping của chủ dự án** (đừng phân tích lại):
   1. Đa giác `FLOOR` trong AdvancedOutput **thò xuống dưới đáy canvas ~1100 px** → khoảng **1/3 sàn
      không nằm trong vùng máy chiếu phủ**. **Phải kiểm tra on-site.**
@@ -207,7 +237,8 @@ Chi tiết đầy đủ ở **`floor/README.md`** (đọc file đó trước khi
   Bắt buộc giữ *"flat orthographic overhead view, no sky, no horizon, soft even light with no harsh shadow"* —
   ảnh có bóng đổ mạnh sẵn là hỏng phần chiếu sáng.
 - `roots.js` / `meadow.js` là **dead code** của 2 concept đã bỏ.
-- `floor/out/` đã .gitignore (file nặng, render lại được).
+- `floor/out/` đã .gitignore (file nặng, render lại được). File giao đã chuyển ra `~/Downloads/DOOR-PORTALS-FLOOR/`.
+- Đã tốn **8 credit higgsfield** cho 2 ảnh nền (nano_banana_pro 4k, 4 credit/ảnh).
 
 ## 12. QUY TẮC TIẾT KIỆM CREDIT (quan trọng — đây là loop chỉnh visual)
 - **Screenshot/render là thứ đốt tiền nhất.** Dùng `SNAP_DIR` chụp frame nội bộ → **downscale** → chỉ đưa **1 ảnh** khi cần quyết định. **Gộp nhiều chỉnh vào 1 lần** rồi mới chụp.
