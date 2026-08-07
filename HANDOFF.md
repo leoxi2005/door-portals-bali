@@ -92,6 +92,22 @@
 - **Log chẩn đoán:** `main.js` giờ bắc cầu `console-message` của renderer ra terminal, và `app.js` in
   `[perf] fps … ndi sent/dropped` mỗi 5 s. Trên máy show cứ chạy từ terminal là đọc được, khỏi DevTools.
 
+**⚠️ Bẫy SHADER — `onBeforeCompile` hỏng mà KHÔNG ném lỗi (FIX ở v1.0.6):**
+`environment.js` (aurora) chèn `vUv.y` vào fragment shader của `MeshBasicMaterial`. Từ **three r152**
+các varying uv đã đổi tên theo từng map — `MeshBasicMaterial` **không còn khai báo `vUv`**, phải dùng
+**`vMapUv`**. Sai tên thì shader **không link được nhưng app vẫn chạy**: three cứ gọi `useProgram` trên
+program hỏng → console đổ **hàng trăm `INVALID_OPERATION: useProgram: program not valid` mỗi giây**
+(ANGLE trên Windows tốn hơn Metal nhiều) và **aurora biến mất hoàn toàn** mà không ai để ý.
+→ Sửa bất kỳ `onBeforeCompile` nào cũng phải mở Console kiểm, đừng tin "nhìn vẫn chạy".
+Nhớ: `assets/audio/*.mp3` báo `ERR_FILE_NOT_FOUND` là **bình thường** — `audio.js` cố tình dò file
+tuỳ chọn, không có thì dùng synth (xem đầu `src/audio.js`), không phải lỗi.
+
+**🔧 Công tắc chẩn đoán hiệu năng (env, chạy được cả trên bản đóng gói):**
+- `NDI_OFF=1` — tắt hẳn NDI. Chênh lệch fps so với lúc bật = đúng giá của đường readback+IPC trên máy đó.
+- `NDI_PBO=1` — quay lại 1 pixel-pack buffer (kiểu trước v1.0.5) để A/B cái ring trên phần cứng thật.
+- `NDI_RGBA=1` — gửi RGBA thay BGRA (đo trên Mac: không nhanh hơn).
+- `RENDER_SCALE=0.5` — hạ độ phân giải render.
+
 **Ra bản mới (quy trình chuẩn):**
 ```
 # 1. sửa code, test bằng SNAP nếu là visual

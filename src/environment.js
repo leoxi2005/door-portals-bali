@@ -47,6 +47,11 @@ export function makeMeadow(W) {
   // Additive: the image's black fades to nothing, only the moonlit mist adds.
   // Extra shader fade at the top/bottom of the strip so no rectangle edge can
   // ever show, even where the source texture isn't perfectly black.
+  // NB: the varying is `vMapUv`, NOT `vUv` — three renamed the per-map uv varyings
+  // in r152 and MeshBasicMaterial no longer declares `vUv` at all. Getting this
+  // wrong doesn't throw: the program silently fails to link, three keeps calling
+  // useProgram on it, and you get a few hundred INVALID_OPERATION per second plus
+  // a missing aurora. Check the console after touching any onBeforeCompile.
   const mat = new THREE.MeshBasicMaterial({
     map: tex, depthWrite: false, fog: false,
     transparent: true, blending: THREE.AdditiveBlending, opacity: 0.85
@@ -55,7 +60,7 @@ export function makeMeadow(W) {
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <map_fragment>',
       `#include <map_fragment>
-       diffuseColor.rgb *= smoothstep(1.0, 0.72, vUv.y) * smoothstep(0.0, 0.06, vUv.y);`
+       diffuseColor.rgb *= smoothstep(1.0, 0.72, vMapUv.y) * smoothstep(0.0, 0.06, vMapUv.y);`
     );
   };
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(W * STRIP_SCALE, STRIP_H), mat);

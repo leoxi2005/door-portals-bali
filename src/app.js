@@ -377,7 +377,7 @@ let ndiError = null;
 // before it could start the next readback, so a ~45 MB readback that needs 2-3 frames
 // to land throttled NDI to a third of the render rate. A ring keeps several readbacks
 // in flight: frame N starts one while frame N-2's is collected.
-const PBO_COUNT = 3;
+const PBO_COUNT = cfg.ndi?.pbo ?? 3;   // NDI_PBO=1 reverts to the pre-v1.0.5 stall
 const pbos = [];
 for (let i = 0; i < PBO_COUNT; i++) {
   const buf = gl.createBuffer();

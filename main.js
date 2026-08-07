@@ -39,6 +39,17 @@ function loadConfig() {
   if (process.env.NDI_RGBA === '1') {
     config.ndi = { ...(config.ndi || {}), bgra: false };
   }
+  // Diagnostics for "why is the show only running at N fps". Run the app from a
+  // terminal with these set and read the [perf] line:
+  //   NDI_OFF=1   → no NDI at all. The gap between this fps and the normal fps is
+  //                 exactly what the readback+IPC pipeline costs on THIS machine.
+  //   NDI_PBO=1   → back to a single pixel-pack buffer (pre-v1.0.5 behaviour), to
+  //                 A/B the readback ring on real hardware instead of guessing.
+  if (process.env.NDI_OFF === '1') config.ndi = { ...(config.ndi || {}), enabled: false };
+  if (process.env.NDI_PBO) {
+    const n = parseInt(process.env.NDI_PBO, 10);
+    if (n >= 1 && n <= 8) config.ndi = { ...(config.ndi || {}), pbo: n };
+  }
   return config;
 }
 
