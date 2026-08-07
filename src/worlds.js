@@ -23,7 +23,13 @@ function coverFit(tex, video) {
   else { const ry = va / PORTAL_AR; tex.repeat.set(1, ry); tex.offset.set(0, (1 - ry) / 2); }
 }
 
-const POOL_COUNT = 16;
+// 32 "mini-scene" clips (DAY5 set). They are 16:9 LANDSCAPE while the doorway is
+// portrait, so coverFit above shows only the middle ~30% of each frame. That is on
+// purpose and it reads well here because these clips are centre-composed (hands on
+// a wheel, a laid table, a room seen through its window) — letterboxing them into
+// the door instead leaves two dead black thirds. Swapping in off-centre footage
+// later would need a per-clip horizontal offset, not a different fit mode.
+const POOL_COUNT = 32;
 let POOL = null;
 function ensurePool() {
   if (POOL) return POOL;

@@ -178,9 +178,22 @@ App nghe **cổng UDP 7000** (`config.osc.port`). Bridge bắn:
 - **Nâng cấp nếu cần** (méo nhẹ tường rìa on-site): dựng 5 camera chính diện riêng — xem `ARCHITECTURE-5WALL.md §3` (kế hoạch, chưa dựng).
 
 ## 6. Video worlds (pool ngẫu nhiên, ĐÃ XONG)
-- **Pool 16 clip** ở `assets/worlds/pool/pool01..16.mp4` (từ `~/Downloads/Gate_sources`, chủ đề đời sống).
-- Mỗi lần mở cửa → **bốc ngẫu nhiên 1 clip** (ưu tiên clip chưa cửa nào dùng). Code: `src/worlds.js` (`ensurePool/acquireClip/releaseClip`, class `World.play/pause`).
-- Cover-fit tự động cho clip dọc 9:16 (fill khung). Video cũ (fantasy) backup ở `assets/worlds_backup_orig/`; `door1..9.mp4` không còn dùng (pool override).
+- **Pool 32 clip** ở `assets/worlds/pool/pool01..32.mp4` — bộ **DAY5 mini-scene**
+  (nguồn gốc: `~/Downloads/DAY5_TONG_HOP/05_SCENES/`, 8 chủ đề W/H/T/L/F/V/P/B + X).
+  Mỗi lần mở cửa → **bốc ngẫu nhiên 1 clip** (ưu tiên clip chưa cửa nào dùng).
+  Code: `src/worlds.js` (`POOL_COUNT`, `ensurePool/acquireClip/releaseClip`, class `World.play/pause`).
+- **⚠️ Clip là 16:9 NGANG còn cửa là dọc** (98×185 cm, tỉ lệ 0.53) → `coverFit` chỉ hiện
+  **dải giữa ~30% bề ngang** mỗi khung. **Đây là chủ ý**: bộ DAY5 bố cục trung tâm (tay trên
+  vô lăng, bàn tiệc, phòng nhìn ra cửa sổ) nên cắt giữa lại thành khung dọc mạnh. Đã dựng thử
+  và loại 2 phương án khác: **letterbox** để 2 mảng đen chiếm 70% cửa, **nền mờ + letterbox**
+  bị đục và clip quá nhỏ. Nếu sau này thay footage **lệch tâm** thì phải thêm offset ngang
+  **từng clip**, đừng đổi kiểu fit.
+- **Độ nét:** 13 clip 1920×1080, 19 clip 1280×720. Dải nhìn thấy của clip 720p = 381 px trong khi
+  cửa trên tường cần 441 px (98 cm × 4.5 px/cm) → hơi mềm một chút, chấp nhận được; clip 1080p thì dư.
+- Nạp 32 clip cùng lúc **không tốn fps** (đã đo: 39.6–40.9, y như lúc 16 clip) vì chúng nằm im
+  tới khi được chọn.
+- Pool cũ (16 clip "đời sống") còn trong lịch sử git nếu cần lấy lại. Video fantasy backup ở
+  `assets/worlds_backup_orig/`; `door1..9.mp4` không còn dùng (pool override).
 
 ## 7. Decor rừng (per cửa) — `src/decor.js`
 - Mỗi cửa: **2 thân cây cổ thụ** ôm 2 bên + **vòm ivy** + **ivy rủ mép cửa** (mờ hẳn khi mở) + **khóm hoa** 2 bên chân (bush-flowers) + đom đóm/bướm.
