@@ -6,38 +6,41 @@
 
 ---
 
-## 0. BẮT ĐẦU SESSION MỚI (đọc trước) — cập nhật 2026-07-28
+## 0. BẮT ĐẦU SESSION MỚI (đọc trước) — cập nhật 2026-08-08
 
 **📋 Câu lệnh dán vào session Claude Code MỚI (mở ở `~/door-portals`):**
 
 > Đọc `HANDOFF.md` ở thư mục này để nắm toàn bộ context dự án Door Portals (touch-wall LiDAR → 5 tường NDI, phòng pentagon Bali). Đây **đã là git repo** trên GitHub `leoxi2005/door-portals-bali` (public, `gh` đã login `leoxi2005`). **TUÂN THỦ quy tắc tiết kiệm credit (mục 12):** không tự chụp screenshot; muốn xem kết quả thì `SNAP_DIR=<dir> RENDER_SCALE=0.5 npm start` (lưu snap1..3.png giây 8/11/15) → downscale → chỉ đưa 1 ảnh khi cần quyết định; gộp nhiều chỉnh vào 1 lần rồi mới render. Chỉ đọc thêm file cụ thể khi cần cho việc đang làm (đừng đọc lại toàn bộ). Xác nhận đã nắm context rồi mình nói việc tiếp.
 
 **Trạng thái hiện tại:**
-- **Bản phát hành mới nhất: `v1.0.3`** (2026-07-28) → https://github.com/leoxi2005/door-portals-bali/releases/tag/v1.0.3
-  Đủ 3 file: `.dmg` (macOS ARM) + `Setup .exe` + `-win.zip` (Windows, CI build OK). Có icon riêng.
-  Nội dung: đổi sang **phòng 240 cm / 10350×1080** + fix vùng chạm chồng nhau + fix cây bật gốc.
-- App LiDAR Bridge (Hokuyo, dự án riêng): đang ở **v5.8** với giao thức zone + `/zonecal` đã chốt.
+- **Bản phát hành mới nhất: `v1.0.8`** (2026-08-08) → https://github.com/leoxi2005/door-portals-bali/releases/tag/v1.0.8
+  Đủ 3 file: `.dmg` (macOS ARM) + `Setup .exe` + `-win.zip` (Windows, CI build OK).
+- App LiDAR Bridge (Hokuyo, dự án riêng): **v5.8**, giao thức zone + `/zonecal` đã chốt.
+- **Preset LiDAR đã sinh sẵn, chưa ai chạy thật:** xem mục **15**.
 
-**⚠️ VIỆC ON-SITE CÒN NỢ sau khi đổi độ phân giải (v1.0.3) — chưa ai làm:**
-1. **Đo lại vị trí zone bên bridge.** Địa chỉ OSC không đổi (vẫn 9 cửa `/tuongN/zone/cuaM`),
-   nhưng tường 1/3/4 đổi bề rộng vật lý nên toạ độ zone cũ lệch. Cách làm: chạy app → bấm
-   **Shift+M** → chỉnh bridge tới khi mọi khung nét đứt thành **xanh** (mục 13).
-2. **Warp lại cả 5 nguồn trong MadMapper** — tỉ lệ từng luồng đã khác
+**⚠️ VIỆC ON-SITE CÒN NỢ — theo thứ tự ưu tiên:**
+1. **Chốt đường xuất NDI nào nhanh hơn trên máy show.** Chạy 1.0.8 hai lần rồi so
+   (mục 16): mặc định, và `set NDI_IPC=1`. Lấy **số hình NDI gửi mỗi giây** (số sau
+   `DOOR-WALL-1=` tăng bao nhiêu sau mỗi 5 s, chia 5), **không phải fps**. Đường nào
+   thắng thì gắn cứng, bỏ đường kia. Mốc cũ: 11.7 NDI/s ở v1.0.6.
+2. **Import preset `Very Final - door-portals.json`** vào LiDAR Bridge → connect 5 sensor →
+   bấm **O** xem gói tới → **Shift+M** xem 9 khung có xanh và trùng ô cửa (mục 15).
+3. **Chạm thử cửa TRÁI tường 2** — nếu app mở cửa PHẢI thì trục +x của sensor đó lật,
+   chỉ cần đổi tên `cua1`↔`cua2` trong preset, **vị trí không phải tính lại** (mục 15).
+4. **Warp lại cả 5 nguồn trong MadMapper** — tỉ lệ từng luồng đã khác từ bản 240 cm
    (vd `DOOR-WALL-3` từ 2079 → 1980 px).
+5. **Kiểm đa giác `FLOOR`** trong MadMapper AdvancedOutput — nó thò xuống dưới đáy canvas
+   ~1100 px, tức ~1/3 sàn có thể ngoài vùng máy chiếu phủ (mục 11b).
 
-**Đã làm ở session 2026-07-28:**
-1. **Đổi độ phân giải phòng** sang số đo mới (mục 2): 5 tường **240 cm cao**, rộng
-   180/560/440/500/620 cm → **10350 × 1080**, đều **4.5 px/cm**. Cửa scale theo → **185 × 98 cm**.
-   Render nặng hơn cũ ~44% pixel (11.2 Mpx vs 7.8) — máy show RTX 5080 vẫn thoải mái.
-2. **Vùng chạm tự co** (`app.js`, `Door.hitPad`): tường 3 hẹp lại nên 2 vùng chạm dự phòng
-   sẽ chồng nhau 12 cm → giờ pad tự tính theo khoảng cách cửa + mép tường (T3 còn 39 cm,
-   T1 vừa khít 180 cm, không tràn qua góc phòng). Đường zone OSC không đổi.
-3. **Fix "cây bật gốc"** (`decor.js`): PNG cây **không align đáy** (tree-oakbroad trống 9.3%
-   chiều cao dưới rễ) → billboard cắm đất vẫn lơ lửng ~30 cm và vệt fade phí trong vùng
-   trống, rễ kết thúc ở ~30% alpha. Nay có `TREE_PAD` (đo từ alpha) + `treeBase()`:
-   lún đúng bằng padding + 12 cm, và `fadeFrom` cho alpha về 0 **đúng pixel rễ thấp nhất**.
-4. **`decor.js` hết hằng số trùng**: import `DOOR_H` từ `door.js`, nook dựng trong không gian
-   gốc 0.9×1.7 m rồi scale 1 lần → đổi cỡ cửa là cây/ivy/hoa tự theo.
+**Đã làm ở session 2026-08-08 (dài, nhiều bài học — đọc kỹ nếu định sửa tiếp):**
+1. **App đóng gói đứng ở màn hình đen** — `three/examples` bị electron-builder cắt khỏi asar.
+   FIX ở v1.0.4, chi tiết ở **bẫy ĐÓNG GÓI** bên dưới.
+2. **Shader aurora hỏng âm thầm** (`vUv` → `vMapUv`), đổ 254 lỗi WebGL/giây và aurora chưa
+   bao giờ được vẽ. FIX ở v1.0.6, chi tiết ở **bẫy SHADER** bên dưới.
+3. **Hiệu năng: 11.7 → chờ đo lại.** Tìm ra nút thắt thật là **IPC**, không phải GPU.
+   Toàn bộ số đo + 3 giả thuyết sai đã loại ở **mục HIỆU NĂNG** bên dưới.
+4. **Sinh preset LiDAR với 9 zone tính sẵn** từ số đo vật lý + baseline sensor — mục **15**.
+5. **Đổi nội dung sau cánh cửa** sang 32 clip DAY5 — mục **6**.
 
 **Đã làm ở session 2026-07-23→24 (tóm tắt để không lặp lại):**
 1. **Visual:** thêm **feather mép portal** (inner-shadow recess, `door.js` `makeInnerShadowTexture`/`portalVignette`) + **lớp sao twinkle** (`environment.js` `makeStars`, `config.quality.stars`). ⚠️ **ĐÃ BỎ god-ray/dust khi mở cửa** vì additive mạnh + tăng bloom làm **CHÁY** video — đừng làm lại kiểu đó.
@@ -219,7 +222,9 @@ App nghe **cổng UDP 7000** (`config.osc.port`). Bridge bắn:
 - Khác: `1-9`=mở cửa, `H`=HUD, `M`=mute.
 
 ## 9. Quy trình lắp ở Bali
-1. Bridge: OSC → host = IP máy door, **port 7000**, prefix `tuong1..5`, zone `cua1/cua2`, giá trị 1/0.
+1. Bridge: **import `Very Final - door-portals.json`** (mục 15) — đã có sẵn 9 zone + prefix `tuong1..5`,
+   load xong tự connect 5 sensor. Nếu dựng tay: OSC → host = IP máy door, **port 7000**,
+   prefix `tuong1..5`, zone `cua1/cua2`, giá trị 1/0.
 2. Chạy `npm start` → bấm **O** kiểm gói tới (lệch tên thì sửa `zoneRule`); bấm **Shift+M** đối chiếu cửa↔địa chỉ.
 3. MadMapper: thêm 5 nguồn NDI `DOOR-WALL-1..5` → warp 4 góc mỗi cái lên đúng tường.
 
@@ -249,7 +254,8 @@ Cửa rộng 98 cm; vùng chạm = cửa + pad 2 bên (mặc định 45 cm, tự
 - `ARCHITECTURE-5WALL.md` — kế hoạch chi tiết 5 tường (một phần đã thay bằng cách "crop").
 
 ## 11. Lưu ý / có thể làm tiếp
-- **Render giờ 11.2 Mpx** (10350×1080, +44% so bản 220 cm). RTX 5080 ổn; Mac dev bắt buộc `RENDER_SCALE`.
+- **Render giờ 11.2 Mpx** (10350×1080, +44% so bản 220 cm). GPU không phải vấn đề — RTX 5080 vẽ cảnh
+  ở 60 fps; nút thắt là đường xuất NDI, xem mục HIỆU NĂNG ở mục 0. Mac dev bắt buộc `RENDER_SCALE`.
 - **Đổi số đo tường lần nữa:** chỉ sửa `config.json → walls` (px/wcm/hcm/doors) — mét, vị trí cửa,
   vùng chạm, 5 crop NDI tự suy ra hết. Giữ **px/cm đồng nhất giữa các tường và với chiều cao**
   (hiện 4.5) thì crop NDI mới trùng khít px thật, không lệch pixel.
@@ -354,3 +360,85 @@ Mục đích: **thấy zone của bridge có nằm đúng ô cửa không** mà 
 - Windows exe do CI build (`windows-2022` + Python 3.11 + softprops upload). Cần **NDI Runtime** chỉ khi phát NDI ra MadMapper; xem/chạy thường thì không cần.
 - `.bak-visual/` = backup local trước khi sửa visual (đã .gitignore, vô hại).
 - Icon nguồn: `build/icon.png`. Script render nằm ở scratchpad (`icon.html` + `make-icon.js`) — không commit; nếu cần đổi icon xem mục 0.
+
+---
+
+## 15. PRESET LIDAR ĐÃ SINH SẴN (2026-08-08) — 9 zone, chưa chạy thật
+
+**File:** `Very Final - door-portals.json` — nằm ở **`/Volumes/Danh/`** (ổ ngoài) và bản copy ở
+**`~/Downloads/`**. Sinh ra từ file mapping của chủ dự án (`Very Final.json`, đã căn warp + chụp
+nền xong nhưng `zones` rỗng).
+
+**Chỉ sửa đúng 4 trường, mọi thứ khác giữ nguyên từng byte** (baseline 720 điểm/sensor, devices,
+IP, poses, ndiCfg, out, smoothing, placement đều nguyên vẹn — đã diff kiểm):
+1. `oscPrefix`: `wall1..5` → **`tuong1..5`** (app lọc bằng `^/tuong(\d+)/zone/cua(\d+)$`, để `wall`
+   là rớt sạch gói). Đổi ở bridge nên **không phải build lại app**.
+2. `zones`: `[]` → **9 vùng**, tên `cua1`/`cua2`, **rộng 128 cm** (ô cửa 98 + 15 cm mỗi bên),
+   **cao 30–185 cm**, xoay theo đúng độ nghiêng sàn đo được của từng sensor.
+3. `warp.corners`: vẽ lại thành hình chữ nhật tường thật (đáy trên đường sàn đo từ baseline, cao
+   2.40 m) để khung `/zonecal` ở Shift+M vẽ đúng chỗ.
+4. `bg.subtract`: giữ `true`.
+
+**🔑 Phát hiện quan trọng nhất — `pipeline.js:518` test zone bằng `pointInPoly(t.x, t.y, z.pts)`
+trên toạ độ THẾ GIỚI (mét), KHÔNG qua homography.** Nghĩa là **warp kéo lệch không làm cửa mở sai**;
+nó chỉ làm khung nét đứt trong overlay Shift+M vẽ sai chỗ, rất dễ tưởng nhầm zone hỏng.
+→ Zone tính thẳng từ số đo vật lý, không cần kéo tay trong UI.
+
+**Hình học lắp thật (dựng lại từ `sensorBaselines`, 720 float = 0.5°/bin, `bin i → góc i/720×360°`):**
+5 Hokuyo gắn **trên đỉnh mỗi tường, cao 2.455–2.491 m**, quét **mặt phẳng ĐỨNG song song mặt tường**
+(không phải quét ngang). Sensor ở gốc (0,0), sàn ở y ≈ −2.47, +x chạy dọc tường. Mỗi sensor lệch
+roll 0.1–1.5° → zone đã xoay theo, đừng vẽ thẳng trục. Đáy quad warp của chủ dự án nằm trên đường
+sàn trong vòng 1–5 cm (họ căn theo đường sàn), nhưng **mép trái/phải quad là ước lượng bằng mắt**
+vì tia laser đi vượt qua góc phòng nên baseline không hề thấy mép tường.
+
+**Gán mặt ↔ tường (chủ dự án đã xác nhận):** Mặt 1→tường 1 … Mặt 5→tường 5.
+Sensor: T1=`.14` T2=`.10` T3=`.11` T4=`.12` T5=`.15` (UST-30LC, **thay cho `.13`**).
+**Cả 5 sensor gắn giữa bề ngang tường** — chủ dự án xác nhận. Đây là ẩn số duy nhất không suy được
+từ dữ liệu; lệch tâm bao nhiêu thì zone tường đó dịch đúng bấy nhiêu.
+
+**Kiểm chứng đã làm:** chiếu ngược 9 zone qua chính `computeH`/`applyH` của bridge → tâm lệch
+**0.00 cm** so với cửa app vẽ, dải cao đúng 30–185 cm.
+
+**⚠️ Còn 1 thứ phải kiểm tại chỗ:** chạm cửa **trái** tường 2 xem app mở cửa trái hay phải. Nếu ngược
+thì trục +x sensor đó lật → chỉ đổi tên `cua1`↔`cua2`, **vị trí không phải tính lại** (cửa bố trí đối
+xứng 0.3/0.7 nên lật trái-phải không đổi toạ độ).
+
+**Sinh lại preset:** script ở scratchpad session (`gen.py`) — đọc `Very Final.json` + `config.json`,
+fit đường sàn từ baseline, dựng zone theo `doors` fraction × bề rộng tường, `SENSOR_OFFSET=None`
+nghĩa là coi sensor ở giữa tường. Muốn đổi bề rộng zone thì sửa `PAD_MAX` (đang 0.15 m),
+đổi dải cao thì sửa `Z_LO/Z_HI` (đang 0.30/1.85).
+
+**Ghi chú thêm:** `out.host` trong preset vẫn là `127.0.0.1` — chỉ đúng nếu bridge chạy **cùng máy**
+với Door Portals. Preset có `fusionActive: true` nên **load file xong bridge tự connect cả 5 sensor**
+(`renderer.js` cuối hàm `__applyPreset`), baseline cũng tự nạp lại, không phải chụp nền lại.
+
+---
+
+## 16. ĐO HIỆU NĂNG TRÊN MÁY SHOW (quy trình chuẩn)
+
+Mở **Command Prompt ngay trong thư mục đã giải nén**: trong File Explorer, bấm thanh địa chỉ, gõ
+`cmd` → Enter. Rồi chạy app từ đó. Xem kết quả: bấm vào cửa sổ app → **Ctrl+Shift+I** → tab
+**Console** → dòng `[perf]` in mỗi 5 giây.
+
+```
+[perf] fps:11.7  render:10350x1080  ndi sent/dropped: DOOR-WALL-1=248/0 ...  ms/frame: readback:1.7 pack:4.4 ipc:36.6
+```
+
+**Con số quan trọng KHÔNG phải `fps`** mà là `DOOR-WALL-1=` tăng bao nhiêu sau mỗi 5 giây, chia 5
+→ **số hình NDI thật sự tới MadMapper mỗi giây**. Bản v1.0.4 từng báo 17 fps trong khi NDI chỉ ra
+~5 hình/giây; HUD đánh lừa.
+
+Các biến môi trường (gõ `set TÊN=1` rồi Enter, sau đó mới chạy `"Door Portals.exe"`):
+
+| | tác dụng |
+|:--|:--|
+| `NDI_OFF=1` | tắt hẳn NDI → fps thuần của việc vẽ cảnh. Chênh lệch = giá của đường xuất NDI |
+| `NDI_IPC=1` | đẩy NDI qua main process (đường cũ) thay vì chạy trong renderer |
+| `NDI_PBO=n` | đổi số pixel-pack buffer (mặc định 4; `1` = kiểu trước v1.0.5) |
+| `NDI_RGBA=1` | gửi RGBA thay BGRA (bỏ được vòng đổi kênh màu) |
+| `RENDER_SCALE=0.5` | hạ độ phân giải render |
+
+Xoá biến: `set TÊN=` (bỏ trống). Biến chỉ sống trong cửa sổ cmd đó.
+
+Cũng chạy được trên macOS: `NDI_IPC=1 npm start`, log `[perf]` in thẳng ra terminal
+(`main.js` bắc cầu `console-message` của renderer ra ngoài).
