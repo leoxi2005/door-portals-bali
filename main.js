@@ -67,8 +67,14 @@ function createWindow() {
     autoHideMenuBar: kiosk,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
+      // NDI runs INSIDE the renderer (see preload.js). Handing 45 MB/frame to the
+      // main process over IPC measured 36.6 ms of the 46 ms frame — 86% of the cost,
+      // dwarfing both the GPU readback (1.7 ms) and the 5-wall packing (4.4 ms).
+      // Node in the renderer removes that hop entirely. Safe here: the window only
+      // ever loads local files, never remote content.
+      contextIsolation: false,
+      nodeIntegration: true,
+      sandbox: false,
       backgroundThrottling: false
     }
   });

@@ -377,7 +377,9 @@ let ndiError = null;
 // before it could start the next readback, so a ~45 MB readback that needs 2-3 frames
 // to land throttled NDI to a third of the render rate. A ring keeps several readbacks
 // in flight: frame N starts one while frame N-2's is collected.
-const PBO_COUNT = cfg.ndi?.pbo ?? 3;   // NDI_PBO=1 reverts to the pre-v1.0.5 stall
+// 4 measured as the sweet spot: 3 starved the senders, 6 captured frames the NDI
+// encoder then refused (12 wasted readbacks/s). Tune per machine with NDI_PBO.
+const PBO_COUNT = cfg.ndi?.pbo ?? 4;
 const pbos = [];
 for (let i = 0; i < PBO_COUNT; i++) {
   const buf = gl.createBuffer();
@@ -387,6 +389,7 @@ for (let i = 0; i < PBO_COUNT; i++) {
 }
 gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
 let pboHead = 0, pboTail = 0, pboInFlight = 0;
+const stage = { n: 0, readback: 0, pack: 0, ipc: 0 };
 
 async function startNdi() {
   if (!(cfg.ndi?.enabled ?? true)) return;
@@ -412,33 +415,50 @@ function captureStart() {
   pboInFlight++;
 }
 
+// Drains every readback that has landed, not just one. A fence typically needs ~2
+// frames to signal, so collecting once per frame capped NDI at half the render rate
+// however big the ring was.
 function captureCollect() {
-  if (!pboInFlight) return;
+  for (let i = 0; i < PBO_COUNT; i++) if (!collectOne()) return;
+}
+
+function collectOne() {
+  if (!pboInFlight) return false;
   const slot = pbos[pboTail];
-  if (!slot.fence) return;
+  if (!slot.fence) return false;
   const status = gl.clientWaitSync(slot.fence, 0, 0);
-  if (status !== gl.ALREADY_SIGNALED && status !== gl.CONDITION_SATISFIED) return;
+  if (status !== gl.ALREADY_SIGNALED && status !== gl.CONDITION_SATISFIED) return false;
   gl.deleteSync(slot.fence);
   slot.fence = null;
   pboTail = (pboTail + 1) % PBO_COUNT;
   pboInFlight--;
 
+  const t0 = performance.now();
   gl.bindBuffer(gl.PIXEL_PACK_BUFFER, slot.buf);
   gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, pixelBuf);
   gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+  const t1 = performance.now();
 
   // Flip (GL reads bottom-up, NDI wants top-down) AND slice each wall's columns in
   // ONE pass straight out of pixelBuf — a separate whole-frame flip buffer meant
   // touching ~45 MB twice per frame for nothing.
   const srcRow = dw * 4;
+  let packMs = 0, ipcMs = 0;
   for (const w of walls) {
     const crow = w.cropW * 4, srcX = w.cropX0 * 4, buf = w.ndiBuf;
+    const a = performance.now();
     for (let y = 0; y < dh; y++) {
       const s = (dh - 1 - y) * srcRow + srcX;
       buf.set(pixelBuf.subarray(s, s + crow), y * crow);
     }
+    const b = performance.now();
     window.api.ndi.frame({ name: w.ndiName, width: w.cropW, height: dh, fps: FPS }, buf);
+    packMs += b - a; ipcMs += performance.now() - b;
   }
+  // Stage timings, averaged into the [perf] line. Guessing which of these three
+  // dominates was wrong twice; on a new machine, measure before optimising.
+  stage.n++; stage.readback += t1 - t0; stage.pack += packMs; stage.ipc += ipcMs;
+  return true;
 }
 
 // ---------------------------------------------------------------- HUD
@@ -467,7 +487,12 @@ setInterval(async () => {
     const st = await window.api.ndi.status();
     drops = (st.senders || []).map(s => `${s.name}=${s.frames}/${s.dropped}`).join(' ');
   } catch (_) { /* NDI off — nothing to report */ }
-  console.log(`[perf] fps:${hud.fps.toFixed(1)}  render:${dw}x${dh}  ndi sent/dropped: ${drops || 'off'}`);
+  const k = stage.n || 1;
+  const ms = stage.n
+    ? `  ms/frame: readback:${(stage.readback / k).toFixed(1)} pack:${(stage.pack / k).toFixed(1)} ipc:${(stage.ipc / k).toFixed(1)}`
+    : '';
+  stage.n = stage.readback = stage.pack = stage.ipc = 0;
+  console.log(`[perf] fps:${hud.fps.toFixed(1)}  render:${dw}x${dh}  ndi sent/dropped: ${drops || 'off'}${ms}`);
 }, 5000);
 
 // ---------------------------------------------------------------- main loop

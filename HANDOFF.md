@@ -67,30 +67,40 @@
   Chạy thử chính bản đóng gói bằng `SNAP_DIR=… RENDER_SCALE=0.35 "release/mac-arm64/Door Portals.app/Contents/MacOS/Door Portals"`
   — thấy log `[ndi] sender started` là renderer đã sống.
 
-**⚡ HIỆU NĂNG — nút thắt nằm ở đường đọc pixel cho NDI, KHÔNG ở GPU (đo 2026-08-08):**
-Đo trên M4 Max, full 10350×1080, log `[perf]` in ra terminal mỗi 5 s:
+**⚡ HIỆU NĂNG — ĐO, ĐỪNG ĐOÁN. Nút thắt là **IPC**, không phải GPU (2026-08-08):**
+Log `[perf]` giờ in luôn thời gian từng khâu. Số trên **máy show RTX 5080 / Windows**, full 10350×1080:
 
-| | fps render | fps NDI thật sự gửi |
-|:--|--:|--:|
-| Tắt NDI (`ndi.enabled=false`) — chỉ vẽ cảnh | 40 | — |
-| Trước khi sửa (1 PBO, lật + cắt 2 lượt) | 37 | **~10** |
-| Sau khi sửa (ring 3 PBO, gộp lật+cắt) | 21.7 | **~21.6** |
+| | fps |
+|:--|--:|
+| `NDI_OFF=1` (chỉ vẽ cảnh, không xuất NDI) | **60.0** (còn bị chặn bởi `maxFps`) |
+| Bật NDI (v1.0.6) | **11.7** |
 
-- **Bản cũ render 37 fps nhưng NDI chỉ ra 10 hình/giây** — con số trên HUD đánh lừa. Nguyên nhân:
-  chỉ có **1 PBO**, `captureStart` phải chờ fence của lần trước xong mới đọc tiếp → cứ ~3 frame mới
-  lấy được 1. **Ring 3 PBO** cho nhiều lệnh đọc cùng bay → NDI lên gấp 2.2 lần.
-- **Gộp lật dọc + cắt cột thành 1 lượt** (bỏ hẳn `flippedBuf`): tiết kiệm ~45 MB đọc + 45 MB ghi mỗi frame.
-- **⚠️ Đừng lặp lại sai lầm của mình:** đổi NDI sang RGBA để bỏ vòng swizzle RGBA→BGRA **KHÔNG nhanh
-  hơn chút nào** (21.6 vs 21.7 fps) — vòng đó chạy ở **main process**, song song, không nằm trên
-  đường tới hạn của renderer. Giữ **BGRA** làm mặc định; `NDI_RGBA=1` chỉ để trả lại 1 nhân cho
-  main process nếu sau này main mới là chỗ nghẽn.
-- **Còn nghẽn ở đâu:** mỗi frame renderer phải làm ~45 MB × 3 lượt — `getBufferSubData` → gộp lật/cắt
-  → IPC serialize sang main. Điện tiếp theo nếu cần 30 fps: **lật ảnh bằng GPU** (thêm 1 pass toàn màn
-  hình vào render target lật sẵn) rồi `readPixels` từng cột tường thẳng vào `ndiBuf` → bỏ được 1 lượt
-  45 MB nữa. Hoặc **đổi sang UYVY** (2 byte/pixel thay vì 4) — giảm phân nửa toàn bộ băng thông, nhưng
-  phải chuyển màu YUV trên GPU nên có rủi ro lệch màu, mà màu đã cân kỹ với sàn (mục 11b).
-- **Log chẩn đoán:** `main.js` giờ bắc cầu `console-message` của renderer ra terminal, và `app.js` in
-  `[perf] fps … ndi sent/dropped` mỗi 5 s. Trên máy show cứ chạy từ terminal là đọc được, khỏi DevTools.
+→ Cảnh vẽ chỉ tốn 16.7 ms/frame, riêng khâu xuất NDI ăn **~69 ms**. GPU dư sức, vấn đề nằm ở đường dữ liệu.
+
+Chia nhỏ khâu đó (đo trên M4 Max, `ms/frame` trong log):
+`readback:1.7  pack:4.4  ipc:36.6` → **86% là `ipcRenderer.send`**, tức đẩy 45 MB/frame sang main process.
+Đọc pixel từ GPU và cắt 5 tường gần như miễn phí.
+
+**3 lần mình đoán sai, ghi lại để khỏi lặp:**
+1. Tưởng vòng swizzle RGBA→BGRA là thủ phạm → đo ra **0 khác biệt** (nó chạy ở main process, song song).
+2. Tưởng ANGLE/D3D11 chậm → thử `--use-angle=gl / vulkan / d3d11on12` trên máy show: **11.5 / 10 / 11.5**, Vulkan còn không lên hình. Không phải lớp đồ hoạ.
+3. Tưởng `readPixels` chậm → thật ra chỉ 1.7 ms.
+
+**Đã sửa (v1.0.5 → v1.0.7):**
+- **Ring nhiều PBO** thay vì 1 (mặc định 4, chỉnh bằng `NDI_PBO`) + **vét hết ring mỗi frame**
+  (`captureCollect` gọi `collectOne` tới khi hết) — trước đó 1 fence cần ~2 frame mới xong nên
+  NDI bị chặn ở nửa tốc độ render dù ring có to bao nhiêu.
+- **Gộp lật dọc + cắt cột thành 1 lượt**, bỏ `flippedBuf`.
+- **Hai đường xuất NDI, chọn bằng env** — xem `preload.js`:
+  mặc định **NDI chạy ngay trong renderer** (không qua IPC); `NDI_IPC=1` quay lại đường cũ.
+  ⚠️ **Đây là đánh đổi, không phải thắng tuyệt đối:** trong renderer thì NDI phải giành CPU với
+  vòng vẽ. Trên M4 Max đường cũ lại **gửi nhiều hơn** (22 vs 16 hình/giây) dù fps render chỉ bằng
+  ¾. Máy nào IPC càng đắt thì đường mới càng lợi → **phải đo trên máy thật rồi mới chốt**.
+
+**Số đo M4 Max để đối chiếu** (full res): tắt NDI 40 fps · IPC + ring 29–32 fps / 22 NDI · in-process 39 fps / 16 NDI.
+
+**Còn dư địa nếu cần 30 NDI/s:** đổi sang **UYVY** (2 byte/pixel thay vì 4) → giảm phân nửa mọi khâu,
+nhưng phải chuyển màu YUV trên GPU, rủi ro lệch tông mà màu đã cân kỹ với sàn (mục 11b).
 
 **⚠️ Bẫy SHADER — `onBeforeCompile` hỏng mà KHÔNG ném lỗi (FIX ở v1.0.6):**
 `environment.js` (aurora) chèn `vUv.y` vào fragment shader của `MeshBasicMaterial`. Từ **three r152**

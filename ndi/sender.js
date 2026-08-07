@@ -122,10 +122,15 @@ function rgbaToBgraInPlace(buf) {
   }
 }
 
-// meta = { name, width, height, fps }; rgbaBuffer is a Node Buffer (RGBA).
-function sendFrame(meta, rgbaBuffer) {
+// meta = { name, width, height, fps }; pixels is a Buffer or Uint8Array of RGBA.
+// Called straight from the renderer now, so it gets a Uint8Array — wrap it as a
+// Buffer VIEW (no copy) rather than Buffer.from(array), which would copy 9 MB.
+function sendFrame(meta, pixels) {
   const e = senders.get(meta.name);
   if (!e || !grandiose) return;
+  const rgbaBuffer = Buffer.isBuffer(pixels)
+    ? pixels
+    : Buffer.from(pixels.buffer, pixels.byteOffset, pixels.byteLength);
 
   // Drop frame if the previous async send hasn't completed (back-pressure).
   if (e.busy) { e.dropped++; return; }
