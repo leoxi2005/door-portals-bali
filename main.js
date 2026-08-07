@@ -31,6 +31,14 @@ function loadConfig() {
   if (process.env.RENDER_SCALE && config.output) {
     config.output.renderScale = parseFloat(process.env.RENDER_SCALE);
   }
+  // NDI_RGBA=1 → send RGBA and skip the per-byte R/B swap. Measured: no fps gain,
+  // because that swap runs in THIS process, off the renderer's critical path — so
+  // BGRA stays the default (it is what every receiver was tested against). The
+  // option only buys back a main-process core if it ever becomes the bottleneck.
+  // Env rather than config.json: in a packaged build config.json is inside app.asar.
+  if (process.env.NDI_RGBA === '1') {
+    config.ndi = { ...(config.ndi || {}), bgra: false };
+  }
   return config;
 }
 
@@ -54,6 +62,13 @@ function createWindow() {
     }
   });
   win.loadFile('index.html');
+
+  // Mirror the renderer's console into the terminal. On a show machine the app runs
+  // on a projector where you can't open DevTools, so without this a renderer-side
+  // error (or the [perf] line) leaves no trace anywhere.
+  win.webContents.on('console-message', (_e, _level, message) => {
+    console.log('[renderer]', message);
+  });
 
   // Watchdog: if the renderer dies or hangs mid-show, bring it back.
   win.webContents.on('render-process-gone', (_e, details) => {

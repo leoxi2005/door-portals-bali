@@ -353,7 +353,6 @@ const dw = renderer.domElement.width;
 const dh = renderer.domElement.height;
 canvas.style.aspectRatio = `${PX_W} / ${PX_H}`; // preview window matches output ratio
 const pixelBuf = new Uint8Array(dw * dh * 4);
-const flippedBuf = new Uint8Array(dw * dh * 4);
 let ndiRunning = false;
 let ndiError = null;
 
@@ -374,17 +373,26 @@ let ndiError = null;
   });
 }
 
-const pbo = gl.createBuffer();
-gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pbo);
-gl.bufferData(gl.PIXEL_PACK_BUFFER, dw * dh * 4, gl.STREAM_READ);
+// Ring of pixel-pack buffers. With a SINGLE pbo the loop had to wait for its fence
+// before it could start the next readback, so a ~45 MB readback that needs 2-3 frames
+// to land throttled NDI to a third of the render rate. A ring keeps several readbacks
+// in flight: frame N starts one while frame N-2's is collected.
+const PBO_COUNT = 3;
+const pbos = [];
+for (let i = 0; i < PBO_COUNT; i++) {
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buf);
+  gl.bufferData(gl.PIXEL_PACK_BUFFER, dw * dh * 4, gl.STREAM_READ);
+  pbos.push({ buf, fence: null });
+}
 gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
-let pendingFence = null;
+let pboHead = 0, pboTail = 0, pboInFlight = 0;
 
 async function startNdi() {
   if (!(cfg.ndi?.enabled ?? true)) return;
   let anyOk = false;
   for (const w of walls) {
-    const res = await window.api.ndi.start({ name: w.ndiName, width: w.cropW, height: dh, fps: FPS });
+    const res = await window.api.ndi.start({ name: w.ndiName, width: w.cropW, height: dh, fps: FPS, bgra: cfg.ndi?.bgra !== false });
     if (res.ok) anyOk = true;
     else { ndiError = res.error; console.warn('[ndi]', w.ndiName, res.error); }
   }
@@ -393,35 +401,41 @@ async function startNdi() {
 startNdi();
 
 function captureStart() {
-  if (pendingFence) return;
-  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pbo);
+  if (pboInFlight >= PBO_COUNT) return;      // ring full — collector is behind
+  const slot = pbos[pboHead];
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, slot.buf);
   gl.readPixels(0, 0, dw, dh, gl.RGBA, gl.UNSIGNED_BYTE, 0);
   gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
-  pendingFence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+  slot.fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
   gl.flush();
+  pboHead = (pboHead + 1) % PBO_COUNT;
+  pboInFlight++;
 }
 
 function captureCollect() {
-  if (!pendingFence) return;
-  const status = gl.clientWaitSync(pendingFence, 0, 0);
+  if (!pboInFlight) return;
+  const slot = pbos[pboTail];
+  if (!slot.fence) return;
+  const status = gl.clientWaitSync(slot.fence, 0, 0);
   if (status !== gl.ALREADY_SIGNALED && status !== gl.CONDITION_SATISFIED) return;
-  gl.deleteSync(pendingFence);
-  pendingFence = null;
+  gl.deleteSync(slot.fence);
+  slot.fence = null;
+  pboTail = (pboTail + 1) % PBO_COUNT;
+  pboInFlight--;
 
-  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pbo);
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, slot.buf);
   gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, pixelBuf);
   gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
 
+  // Flip (GL reads bottom-up, NDI wants top-down) AND slice each wall's columns in
+  // ONE pass straight out of pixelBuf — a separate whole-frame flip buffer meant
+  // touching ~45 MB twice per frame for nothing.
   const srcRow = dw * 4;
-  for (let y = 0; y < dh; y++) {
-    flippedBuf.set(pixelBuf.subarray(y * srcRow, y * srcRow + srcRow), (dh - 1 - y) * srcRow);
-  }
-  // slice each wall's columns into its own tightly-packed buffer → its NDI stream
   for (const w of walls) {
     const crow = w.cropW * 4, srcX = w.cropX0 * 4, buf = w.ndiBuf;
     for (let y = 0; y < dh; y++) {
-      const s = y * srcRow + srcX;
-      buf.set(flippedBuf.subarray(s, s + crow), y * crow);
+      const s = (dh - 1 - y) * srcRow + srcX;
+      buf.set(pixelBuf.subarray(s, s + crow), y * crow);
     }
     window.api.ndi.frame({ name: w.ndiName, width: w.cropW, height: dh, fps: FPS }, buf);
   }
@@ -443,6 +457,18 @@ setInterval(() => {
     `touch:  ${hud.lastTouch}   ${states}  (i=idle o=opening v=overlay c=closing/cooldown)\n` +
     `[g]=HƯỚNG DẪN  [o]=OSC-monitor  [Shift+M]=wall-map  [r]=độ-phân-giải  ·  [1..${doors.length}]=doors  [h]=hud  [m]=mute`;
 }, 250);
+
+// One-line health log every 5 s. On the show machine the HUD is often hidden (or the
+// window is on a projector you can't read), so this is the only way to see fps and
+// whether NDI is dropping frames — read it from the terminal / DevTools console.
+setInterval(async () => {
+  let drops = '';
+  try {
+    const st = await window.api.ndi.status();
+    drops = (st.senders || []).map(s => `${s.name}=${s.frames}/${s.dropped}`).join(' ');
+  } catch (_) { /* NDI off — nothing to report */ }
+  console.log(`[perf] fps:${hud.fps.toFixed(1)}  render:${dw}x${dh}  ndi sent/dropped: ${drops || 'off'}`);
+}, 5000);
 
 // ---------------------------------------------------------------- main loop
 

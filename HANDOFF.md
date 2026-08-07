@@ -67,6 +67,31 @@
   Chạy thử chính bản đóng gói bằng `SNAP_DIR=… RENDER_SCALE=0.35 "release/mac-arm64/Door Portals.app/Contents/MacOS/Door Portals"`
   — thấy log `[ndi] sender started` là renderer đã sống.
 
+**⚡ HIỆU NĂNG — nút thắt nằm ở đường đọc pixel cho NDI, KHÔNG ở GPU (đo 2026-08-08):**
+Đo trên M4 Max, full 10350×1080, log `[perf]` in ra terminal mỗi 5 s:
+
+| | fps render | fps NDI thật sự gửi |
+|:--|--:|--:|
+| Tắt NDI (`ndi.enabled=false`) — chỉ vẽ cảnh | 40 | — |
+| Trước khi sửa (1 PBO, lật + cắt 2 lượt) | 37 | **~10** |
+| Sau khi sửa (ring 3 PBO, gộp lật+cắt) | 21.7 | **~21.6** |
+
+- **Bản cũ render 37 fps nhưng NDI chỉ ra 10 hình/giây** — con số trên HUD đánh lừa. Nguyên nhân:
+  chỉ có **1 PBO**, `captureStart` phải chờ fence của lần trước xong mới đọc tiếp → cứ ~3 frame mới
+  lấy được 1. **Ring 3 PBO** cho nhiều lệnh đọc cùng bay → NDI lên gấp 2.2 lần.
+- **Gộp lật dọc + cắt cột thành 1 lượt** (bỏ hẳn `flippedBuf`): tiết kiệm ~45 MB đọc + 45 MB ghi mỗi frame.
+- **⚠️ Đừng lặp lại sai lầm của mình:** đổi NDI sang RGBA để bỏ vòng swizzle RGBA→BGRA **KHÔNG nhanh
+  hơn chút nào** (21.6 vs 21.7 fps) — vòng đó chạy ở **main process**, song song, không nằm trên
+  đường tới hạn của renderer. Giữ **BGRA** làm mặc định; `NDI_RGBA=1` chỉ để trả lại 1 nhân cho
+  main process nếu sau này main mới là chỗ nghẽn.
+- **Còn nghẽn ở đâu:** mỗi frame renderer phải làm ~45 MB × 3 lượt — `getBufferSubData` → gộp lật/cắt
+  → IPC serialize sang main. Điện tiếp theo nếu cần 30 fps: **lật ảnh bằng GPU** (thêm 1 pass toàn màn
+  hình vào render target lật sẵn) rồi `readPixels` từng cột tường thẳng vào `ndiBuf` → bỏ được 1 lượt
+  45 MB nữa. Hoặc **đổi sang UYVY** (2 byte/pixel thay vì 4) — giảm phân nửa toàn bộ băng thông, nhưng
+  phải chuyển màu YUV trên GPU nên có rủi ro lệch màu, mà màu đã cân kỹ với sàn (mục 11b).
+- **Log chẩn đoán:** `main.js` giờ bắc cầu `console-message` của renderer ra terminal, và `app.js` in
+  `[perf] fps … ndi sent/dropped` mỗi 5 s. Trên máy show cứ chạy từ terminal là đọc được, khỏi DevTools.
+
 **Ra bản mới (quy trình chuẩn):**
 ```
 # 1. sửa code, test bằng SNAP nếu là visual
