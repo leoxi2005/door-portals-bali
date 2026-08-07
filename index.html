@@ -27,11 +27,15 @@
     }
     #hud.hidden { display: none; }
   </style>
+  <!-- three/addons is vendored into src/ on purpose: electron-builder drops any
+       top-level "examples" folder inside node_modules (NodeModuleCopyHelper's
+       topLevelExcludedFiles), so node_modules/three/examples/jsm never reaches the
+       packaged app and every import below would 404 — black screen stuck on "loading…". -->
   <script type="importmap">
   {
     "imports": {
       "three": "./node_modules/three/build/three.module.js",
-      "three/addons/": "./node_modules/three/examples/jsm/"
+      "three/addons/": "./src/vendor/three-addons/"
     }
   }
   </script>

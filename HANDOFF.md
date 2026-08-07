@@ -51,6 +51,22 @@
 - Upload `.exe` bằng **`softprops/action-gh-release`** (electron-builder `--publish always` bị conflict "draft vs release" khi release đã tồn tại).
 - Module NDI native **`grandiose` KHÔNG cross-build được trên Mac** → Windows bắt buộc build trên CI/máy Windows.
 
+**⚠️ Bẫy ĐÓNG GÓI — app build ra đứng ở màn hình đen "DOOR PORTALS — loading…" (FIX ở v1.0.4):**
+- electron-builder có danh sách cứng `topLevelExcludedFiles` (`app-builder-lib/out/util/NodeModuleCopyHelper.js`)
+  gồm `test/tests/example/**examples**/.bin` — nó cắt **trước khi** đọc mảng `files` của bạn.
+  Nên dù `package.json` ghi `node_modules/three/**/*`, thư mục **`three/examples/` vẫn bị vứt khỏi asar**
+  → 5 import `three/addons/postprocessing/*` (EffectComposer/RenderPass/UnrealBloomPass/ShaderPass/OutputPass)
+  404 → `src/app.js` chết ngay dòng import → HUD đứng ở chữ tĩnh trong `index.html`. **Hỏng cả Mac lẫn Windows**;
+  chạy `npm start` thì không lộ vì `node_modules` nằm nguyên trên đĩa.
+- **Cách fix đã dùng:** copy 10 file cần thiết (7 postprocessing + 3 shaders, 29.5 KB, chỉ import thêm `three`)
+  vào **`src/vendor/three-addons/`** và trỏ importmap trong `index.html` tới đó. `files` đã có `src/**/*` nên
+  không phải sửa `package.json`. **Thêm addon mới → copy vào đây, đừng trỏ lại node_modules.**
+- **Kiểm bản build trước khi phát hành:**
+  `npx electron-builder --mac --dir` rồi `npx @electron/asar list "release/mac-arm64/Door Portals.app/Contents/Resources/app.asar"`
+  — soi xem đủ `src/`, `assets/worlds/pool/` (16), `assets/textures/decor/` (8), `src/vendor/` (10).
+  Chạy thử chính bản đóng gói bằng `SNAP_DIR=… RENDER_SCALE=0.35 "release/mac-arm64/Door Portals.app/Contents/MacOS/Door Portals"`
+  — thấy log `[ndi] sender started` là renderer đã sống.
+
 **Ra bản mới (quy trình chuẩn):**
 ```
 # 1. sửa code, test bằng SNAP nếu là visual
