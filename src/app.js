@@ -116,9 +116,12 @@ scene.add(shadowCatcher);
 const sky = makeSky(W, H);
 const meadow = makeMeadow(W);
 const fog = makeFog(W, H);
-const grass = makeGrass(Q.grassBlades ?? 1700, W);
-// Hero door x positions — dummy doors avoid standing right behind them
-makeDummyDoors.heroXs = walls.flatMap(w => w.doorFracs.map(f => w.x0 + f * w.wm));
+// Hero door x positions — dummy doors avoid standing right behind them, and
+// the foreground grass avoids growing right in FRONT of them (it would paint
+// over the world video the moment the door opens).
+const heroXs = walls.flatMap(w => w.doorFracs.map(f => w.x0 + f * w.wm));
+const grass = makeGrass(Q.grassBlades ?? 1700, W, heroXs, DOOR_W / 2 + 0.16);
+makeDummyDoors.heroXs = heroXs;
 const dummies = makeDummyDoors(Q.dummyDoors ?? 26, Q.glowSlabs ?? 34, W, H);
 const fireflies = makeFireflies(Q.fireflies ?? 120, W);
 // a sparse, deeper layer of fireflies drifting among the far doors (few, dim)
@@ -147,6 +150,9 @@ const timing = {
 };
 
 const worldCfgs = cfg.worlds ?? [];
+// One guest per door: config.doorNames[i] is engraved on door i (left to right,
+// wall 1 → wall 5). Fewer names than doors just leaves the rest blank.
+const doorNames = cfg.doorNames ?? [];
 const doors = [];
 let doorIdx = 0;
 for (const wall of walls) {
@@ -154,7 +160,7 @@ for (const wall of walls) {
   for (const f of wall.doorFracs) {
     const wcfg = worldCfgs[doorIdx % Math.max(worldCfgs.length, 1)] ?? { palette: 'meadow' };
     const world = new World(wcfg);
-    const door = new Door(doorIdx, wall.x0 + f * wall.wm, world, timing);
+    const door = new Door(doorIdx, wall.x0 + f * wall.wm, world, timing, doorNames[doorIdx] ?? '');
     scene.add(door.group);
     doors.push(door);
     wall.doors.push(door);
@@ -271,9 +277,10 @@ canvas.addEventListener('pointerdown', (e) => {
   touchAtMeters(xm, ym);
 });
 
-// Keys 1..9 (dev), H toggles HUD
+// Keys 1..9 then 0 - = for doors 10/11/12 (dev), H toggles HUD
+const DOOR_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='];
 window.addEventListener('keydown', (e) => {
-  const n = Number(e.key);
+  const n = DOOR_KEYS.indexOf(e.key) + 1;
   if (n >= 1 && n <= doors.length) triggerDoor(doors[n - 1]);
   if (e.key === 'h') hudEl.classList.toggle('hidden');
   if (e.key === 'm') audio.toggleMute();
@@ -322,7 +329,7 @@ window.api.onOsc((msg) => {
   const zoneDoor = resolveZoneDoor(msg.address);
   if (zoneDoor) {
     const on = Number(msg.args[0] ?? 0) >= 1;
-    zoneDoor.held = on;                    // hold-to-view: stays open while touched
+    zoneDoor.held = on;                    // informational only now (tap-to-play)
     if (on) zoneDoor.setOpen(true);
     else if (zoneCloseOnRelease) zoneDoor.setOpen(false);
     dbg.flashZone(zoneDoor);

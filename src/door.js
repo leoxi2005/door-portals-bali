@@ -76,9 +76,83 @@ function easeInOutCubic(x) {
   return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 }
 
+// ---------------------------------------------------------------- name plaque
+// A small sign hung over the lintel, one per guest.
+// The BOARD is a real box using the door's own frame material, so every plaque
+// is automatically the same wood/colour as the door it belongs to (the doors
+// come in nine palettes — a plank painted here could only ever match one).
+// This canvas is the ENGRAVING alone, laid over that board: transparent
+// everywhere except a carved rim and the letters.
+const PLAQUE_W = 1.16, PLAQUE_H = 0.22;   // metres on the physical wall
+function nameplateTexture(name) {
+  const CW = 1024, CH = Math.round(CW * PLAQUE_H / PLAQUE_W); // 194
+  const cv = document.createElement('canvas');
+  cv.width = CW; cv.height = CH;
+  const ctx = cv.getContext('2d');
+
+  // carved rim: a chiselled groove (dark) with a lit lip just below it
+  const inset = 16;
+  const rx = inset, ry = inset * 0.8, rw = CW - inset * 2, rh = CH - inset * 1.6;
+  ctx.strokeStyle = 'rgba(0,0,0,0.42)'; ctx.lineWidth = 5;
+  ctx.strokeRect(rx, ry, rw, rh);
+  ctx.strokeStyle = 'rgba(255,232,190,0.16)'; ctx.lineWidth = 2;
+  ctx.strokeRect(rx + 3.5, ry + 3.5, rw - 7, rh - 7);
+  // and a soft shadow hugging the outer edge so the board reads as raised
+  const vg = ctx.createLinearGradient(0, 0, 0, CH);
+  vg.addColorStop(0, 'rgba(0,0,0,0.30)');
+  vg.addColorStop(0.30, 'rgba(0,0,0,0)');
+  vg.addColorStop(0.72, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,0.34)');
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, CW, CH);
+
+  // engraved text: shrink to fit, dark cut underneath, warm gilding on top
+  const txt = String(name).toUpperCase();
+  const x0 = 0, x1 = CW, y0 = 0, y1 = CH;
+  const maxW = (x1 - x0) - 64;
+  let fs = Math.round(CH * 0.54);
+  const font = (s) => `600 ${s}px "Palatino Linotype","Book Antiqua",Georgia,"Times New Roman",serif`;
+  try { ctx.letterSpacing = `${Math.round(fs * 0.10)}px`; } catch { /* older Chromium */ }
+  ctx.font = font(fs);
+  while (ctx.measureText(txt).width > maxW && fs > 14) {
+    fs -= 2;
+    try { ctx.letterSpacing = `${Math.round(fs * 0.10)}px`; } catch { /* ignore */ }
+    ctx.font = font(fs);
+  }
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const cx = CW / 2, cy = CH / 2 + 1;
+  // The board underneath is the door's own wood — which runs from near-white
+  // (snow palette) to dark oak. So the letters get BOTH a dark cut below and a
+  // dark keyline around them: that keyline is what keeps gold legible on the
+  // pale doors, and it reads as the shadowed wall of the chisel groove.
+  ctx.fillStyle = 'rgba(0,0,0,0.70)';           // the cut into the wood
+  ctx.fillText(txt, cx, cy + 3.5);
+  // Keep the keyline THIN. strokeText centres the line on the glyph outline, so
+  // a fat stroke eats inward: at 5 px it swallowed half of Palatino's thin
+  // strokes and the gold went muddy. ~3% of the font size is enough to separate
+  // the letters from pale wood without thinning them.
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = Math.max(2, fs * 0.028);
+  ctx.strokeStyle = 'rgba(30,18,6,0.8)';
+  ctx.strokeText(txt, cx, cy);
+  const tg = ctx.createLinearGradient(0, cy - fs * 0.6, 0, cy + fs * 0.6);
+  tg.addColorStop(0, '#fff3d8'); tg.addColorStop(0.5, '#f8cf8a'); tg.addColorStop(1, '#cf8f45');
+  ctx.fillStyle = tg;
+  ctx.shadowColor = 'rgba(255,200,130,0.65)'; ctx.shadowBlur = 10;
+  ctx.fillText(txt, cx, cy);
+  ctx.shadowBlur = 0;
+  ctx.fillText(txt, cx, cy);   // second pass: solid gold, no haze eating it
+
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
 export class Door {
-  constructor(index, xGlobal, world, timing) {
+  constructor(index, xGlobal, world, timing, name = '') {
     this.index = index;
+    this.name = name;
     this.x = xGlobal;       // center x in scene meters
     this.world = world;
     this.timing = timing;
@@ -86,7 +160,7 @@ export class Door {
     this.state = 'idle';
     this.stateT = 0;        // seconds in current state
     this.openAmount = 0;    // 0 closed .. 1 fully open
-    this.held = false;      // zone "hold-to-view": true while a hand is touching
+    this.held = false;      // a hand is on the wall right now (debug/HUD only)
 
     this.group = new THREE.Group();
     this.group.position.set(xGlobal, DOOR_H / 2 + 0.02, 0); // base on the floor line
@@ -159,6 +233,30 @@ export class Door {
       part.receiveShadow = true;
     }
     this.group.add(left, right, top, sill);
+
+    // --- guest nameplate, hung over the lintel (skipped when no name is set).
+    // Sits in FRONT of the frame but entirely ABOVE the opening, so it can
+    // never cover the world video.
+    if (this.name) {
+      const py = DOOR_H / 2 + FRAME_T / 2 + PLAQUE_H / 2 + 0.02;
+      const pz = FRAME_T * 0.7 + 0.03;
+      // board: same material as the frame bars → same wood, same palette tint
+      const board = new THREE.Mesh(new THREE.BoxGeometry(PLAQUE_W, PLAQUE_H, 0.05), frameMat);
+      board.position.set(0, py, pz);
+      board.castShadow = true;
+      board.receiveShadow = true;
+      // engraving laid on the board's front face
+      const label = new THREE.Mesh(
+        new THREE.PlaneGeometry(PLAQUE_W, PLAQUE_H),
+        new THREE.MeshBasicMaterial({
+          map: nameplateTexture(this.name), transparent: true, depthWrite: false, fog: true
+        })
+      );
+      label.position.set(0, py, pz + 0.026);
+      label.renderOrder = 2;
+      this.group.add(board, label);
+      this.plaque = board;
+    }
 
     // --- hinged panel. The door swings OUTWARD toward the audience, pivoting
     // on the edge nearest the viewer (opposite the handle) — like a door
@@ -385,12 +483,18 @@ export class Door {
         break;
       }
       case 'overlay': {
-        // Door held open — the world lives behind the doorway (portal only).
-        // While a hand is on the wall (held) it stays open up to a safety cap;
-        // otherwise it auto-closes after the normal hold.
+        // TAP TO PLAY: one touch opens the door and it stays open until the
+        // clip has run all the way through, then closes by itself. Letting go
+        // does NOT close it, and touching again mid-clip does nothing (setOpen
+        // only fires from 'idle') — the next touch after it shuts pulls a fresh
+        // random clip. A world with no video (procedural fallback) has no end
+        // to wait for, so it uses the timed hold instead; overlayMaxHold is the
+        // safety net for a clip that never reports its end.
         this.openAmount = 1;
-        const cap = this.held ? (T.overlayMaxHold ?? 60) : T.overlayHold;
-        if (this.stateT >= cap) {
+        const hasClip = !!this.world.activeEntry;
+        const done = hasClip ? (this.stateT >= 0.6 && this.world.clipDone())
+                             : this.stateT >= T.overlayHold;
+        if (done || this.stateT >= (T.overlayMaxHold ?? 60)) {
           this.state = 'closing';
           this.stateT = 0;
           this.events?.close?.();

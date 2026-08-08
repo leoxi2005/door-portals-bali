@@ -11,10 +11,17 @@
   },
   "walls": [
     { "px": 810,  "wcm": 180, "hcm": 240, "oscPort": 9001, "doors": [0.5] },
-    { "px": 2520, "wcm": 560, "hcm": 240, "oscPort": 9002, "doors": [0.3, 0.7] },
-    { "px": 1980, "wcm": 440, "hcm": 240, "oscPort": 9003, "doors": [0.3, 0.7] },
-    { "px": 2250, "wcm": 500, "hcm": 240, "oscPort": 9004, "doors": [0.3, 0.7] },
-    { "px": 2790, "wcm": 620, "hcm": 240, "oscPort": 9005, "doors": [0.3, 0.7] }
+    { "px": 2520, "wcm": 560, "hcm": 240, "oscPort": 9002, "doors": [0.2063, 0.5, 0.7938] },
+    { "px": 1980, "wcm": 440, "hcm": 240, "oscPort": 9003, "doors": [0.2962, 0.7038] },
+    { "px": 2250, "wcm": 500, "hcm": 240, "oscPort": 9004, "doors": [0.2010, 0.5, 0.7990] },
+    { "px": 2790, "wcm": 620, "hcm": 240, "oscPort": 9005, "doors": [0.2105, 0.5, 0.7895] }
+  ],
+  "doorNames": [
+    "AEON",
+    "RALU", "KANZA", "CINDY",
+    "SANA", "ROO",
+    "ZAM", "LEVA", "AMANDEEP",
+    "UMER", "AEINA", "JP"
   ],
   "worlds": [
     { "video": "assets/worlds/door1.mp4", "palette": "meadow" },
@@ -35,7 +42,7 @@
     "port": 7000,
     "zoneRule": "^/tuong(\\d+)/zone/cua(\\d+)$",
     "zones": {},
-    "zoneCloseOnRelease": true,
+    "zoneCloseOnRelease": false,
     "address": "/touch",
     "normalized": true,
     "flipY": false
@@ -58,7 +65,7 @@
     "openDuration": 1.2,
     "overlayFadeIn": 0.9,
     "overlayHold": 10.0,
-    "overlayMaxHold": 60.0,
+    "overlayMaxHold": 30.0,
     "overlayFadeOut": 1.2,
     "closeDuration": 1.0,
     "cooldown": 1.5,

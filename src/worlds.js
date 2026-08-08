@@ -37,7 +37,10 @@ function ensurePool() {
   for (let i = 1; i <= POOL_COUNT; i++) {
     const src = `assets/worlds/pool/pool${String(i).padStart(2, '0')}.mp4`;
     const video = document.createElement('video');
-    video.muted = true; video.loop = true; video.playsInline = true; video.preload = 'auto';
+    // NOT looped: one touch plays the clip through to its end and the door
+    // closes on it (see Door 'overlay'). Looping would mean the door never
+    // reaches an end to close on.
+    video.muted = true; video.loop = false; video.playsInline = true; video.preload = 'auto';
     video.src = src;
     const entry = { video, texture: null, ready: false, inUse: false };
     video.addEventListener('loadeddata', () => {
@@ -220,6 +223,16 @@ export class World {
     if (this.onMaterialsChanged) this.onMaterialsChanged();
     e.video.currentTime = 0;
     e.video.play().catch(() => {});
+  }
+
+  // Has the clip behind this door finished playing? The door waits for this
+  // before closing. `false` when there is no video at all (procedural
+  // fallback) — the door then falls back to its timed hold.
+  clipDone() {
+    const v = this.activeEntry?.video;
+    if (!v) return false;
+    if (v.ended) return true;
+    return v.duration > 0 && v.currentTime >= v.duration - 0.08;
   }
 
   // Close → release the clip back to the pool for another door to reuse.

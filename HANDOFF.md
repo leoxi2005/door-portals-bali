@@ -6,7 +6,7 @@
 
 ---
 
-## 0. BẮT ĐẦU SESSION MỚI (đọc trước) — cập nhật 2026-08-08
+## 0. BẮT ĐẦU SESSION MỚI (đọc trước) — cập nhật 2026-08-09
 
 **📋 Câu lệnh dán vào session Claude Code MỚI (mở ở `~/door-portals`):**
 
@@ -17,16 +17,20 @@
   Đủ 3 file: `.dmg` (macOS ARM) + `Setup .exe` + `-win.zip` (Windows, CI build OK).
 - App LiDAR Bridge (Hokuyo, dự án riêng): **v5.8**, giao thức zone + `/zonecal` đã chốt.
 - **Preset LiDAR đã sinh sẵn, chưa ai chạy thật:** xem mục **15**.
+- **2026-08-09: 12 cửa + biển tên khách + tương tác chạm-để-xem** — xem mục **17**.
+  Code đã xong & đã render kiểm; **chưa bump version, chưa build, chưa phát hành.**
+  Sàn `floor/` phải **render lại** cho khớp 12 cửa (mục 17).
 
 **⚠️ VIỆC ON-SITE CÒN NỢ — theo thứ tự ưu tiên:**
 1. **Chốt đường xuất NDI nào nhanh hơn trên máy show.** Chạy 1.0.8 hai lần rồi so
    (mục 16): mặc định, và `set NDI_IPC=1`. Lấy **số hình NDI gửi mỗi giây** (số sau
    `DOOR-WALL-1=` tăng bao nhiêu sau mỗi 5 s, chia 5), **không phải fps**. Đường nào
    thắng thì gắn cứng, bỏ đường kia. Mốc cũ: 11.7 NDI/s ở v1.0.6.
-2. **Import preset `Very Final - door-portals.json`** vào LiDAR Bridge → connect 5 sensor →
-   bấm **O** xem gói tới → **Shift+M** xem 9 khung có xanh và trùng ô cửa (mục 15).
-3. **Chạm thử cửa TRÁI tường 2** — nếu app mở cửa PHẢI thì trục +x của sensor đó lật,
-   chỉ cần đổi tên `cua1`↔`cua2` trong preset, **vị trí không phải tính lại** (mục 15).
+2. **Import preset `Very Final - door-portals.json`** (bản 12 zone, 2026-08-09) vào LiDAR Bridge →
+   connect 5 sensor → bấm **O** xem gói tới → **Shift+M** xem **12** khung có xanh và trùng ô cửa (mục 15).
+3. **Chạm thử cửa TRÁI tường 2** — nếu app mở cửa PHẢI thì trục +x của sensor đó lật.
+   ⚠️ Với 3 cửa/tường thì phải **đảo `cua1`↔`cua3`** (cua2 ở giữa nên đứng yên), khác bản 9 cửa.
+   **Vị trí không phải tính lại** — cửa bố trí đối xứng qua tâm tường (mục 15).
 4. **Warp lại cả 5 nguồn trong MadMapper** — tỉ lệ từng luồng đã khác từ bản 240 cm
    (vd `DOOR-WALL-3` từ 2079 → 1980 px).
 5. **Kiểm đa giác `FLOOR`** trong MadMapper AdvancedOutput — nó thò xuống dưới đáy canvas
@@ -136,7 +140,7 @@ gh release create v1.0.3 "release/Door Portals-1.0.3-arm64.dmg#macOS (Apple Sili
 
 ## 1. App là gì (hiện tại)
 Electron + Three.js. Cài đặt tương tác cho **phòng pentagon 5 tường** ở Bali:
-- Người chạm 1 ô cửa trên tường → **cửa mở ra, chiếu 1 video "mảnh đời sống" ngẫu nhiên** → **buông tay → cửa đóng** ("giữ để xem").
+- Người **chạm 1 lần** vào ô cửa → **cửa mở, chiếu HẾT 1 clip ngẫu nhiên rồi tự đóng**. Chạm lần nữa → clip khác. ("chạm-để-xem", đổi 2026-08-09; bản cũ là "giữ-để-xem".)
 - Cảm biến **Hokuyo LiDAR** → app **bridge** (fix-hokuyo-bugs-v5.7, dự án KHÁC) → gửi **OSC** sang app này.
 - Output: **5 luồng NDI riêng** (mỗi tường 1 luồng) → **MadMapper** warp lên từng mặt tường vật lý.
 - Nền: khu rừng cổ tích đêm — mỗi cửa là 1 "cổng cây thần" (thân cây + ivy + hoa + đom đóm), nền cuốn liền quanh phòng.
@@ -145,7 +149,8 @@ Electron + Three.js. Cài đặt tương tác cho **phòng pentagon 5 tường**
 
 ## 2. Phòng & độ phân giải (số thật từ chủ dự án)
 5 tường, **đều cao 240 cm**. Rộng: 180 / 560 / 440 / 500 / 620 cm.
-→ px: **810 / 2520 / 1980 / 2250 / 2790** (tổng **10350 × 1080**). Cửa: **1 / 2 / 2 / 2 / 2 = 9 cửa**.
+→ px: **810 / 2520 / 1980 / 2250 / 2790** (tổng **10350 × 1080**). Cửa: **1 / 3 / 2 / 3 / 3 = 12 cửa**
+(bản 9 cửa cũ là 1/2/2/2/2 — đổi 2026-08-09 để mỗi khách một cửa, xem mục 17).
 Thang mét: `M_PER_PX = (hcm/100) / PX_H = 2.40/1080`. Đồng nhất **4.5 px/cm** ở cả 5 tường
 và cả chiều cao → 5 vùng cắt NDI trùng khít px thật, không lệch 1 pixel nào.
 Chu vi 23.00 m, cửa **185 × 98 cm** (77% chiều cao tường — `DOOR_W/DOOR_H` trong `src/door.js`,
@@ -169,7 +174,9 @@ App nghe **cổng UDP 7000** (`config.osc.port`). Bridge bắn:
 ```
 - Auto-map địa chỉ→cửa bằng `config.osc.zoneRule` = `^/tuong(\d+)/zone/cua(\d+)$` → tường N, cửa M.
   (Nếu bridge đặt tên khác → sửa `zoneRule` hoặc điền `config.osc.zones` = `{"địa chỉ": globalDoorIndex}`.)
-- `zoneCloseOnRelease: true` (giữ-để-xem). Cửa mở tối đa 60s an toàn (`timing.overlayMaxHold`) phòng mất gói 0.
+- `zoneCloseOnRelease: false` (**chạm-để-xem**): gói `0` bị bỏ qua, cửa tự đóng khi clip hết.
+  Chạm lại giữa chừng không làm gì (`setOpen` chỉ ăn từ `idle`). Clip pool dài 8.4–16.3 s;
+  `timing.overlayMaxHold` (30 s) là lưới an toàn nếu clip treo, `overlayHold` chỉ dùng cho world procedural.
 - Xử lý ở `src/app.js` (hàm `resolveZoneDoor` + handler `window.api.onOsc`). Cửa: `Door.setOpen()` + cờ `held`.
 - Vẫn giữ song song đường cũ `/touch x y` per-wall-port (9001–9005) làm dự phòng.
 
@@ -228,17 +235,22 @@ App nghe **cổng UDP 7000** (`config.osc.port`). Bridge bắn:
 2. Chạy `npm start` → bấm **O** kiểm gói tới (lệch tên thì sửa `zoneRule`); bấm **Shift+M** đối chiếu cửa↔địa chỉ.
 3. MadMapper: thêm 5 nguồn NDI `DOOR-WALL-1..5` → warp 4 góc mỗi cái lên đúng tường.
 
-**Vị trí cửa thật (để đặt zone bên bridge), tính từ mép TRÁI mỗi tường — bản 240 cm:**
+**Vị trí cửa thật (để đặt zone bên bridge), tính từ mép TRÁI mỗi tường — bản 12 cửa:**
 
-| Tường | Rộng | Tâm cửa | Vùng chạm mỗi cửa |
-|:--:|:--|:--|:--|
-| 1 | 180 cm | 90 | 180 cm (vừa khít cả tường) |
-| 2 | 560 cm | 168 / 392 | 188 cm |
-| 3 | 440 cm | 132 / 308 | 176 cm (đã co để 2 vùng không chồng) |
-| 4 | 500 cm | 150 / 350 | 188 cm |
-| 5 | 620 cm | 186 / 434 | 188 cm |
+| Tường | Rộng | Số cửa | Tâm cửa | Zone bridge |
+|:--:|:--|:--:|:--|:--|
+| 1 | 180 cm | 1 | 90 | 128 cm |
+| 2 | 560 cm | 3 | 115.5 / 280 / 444.5 | 128 cm |
+| 3 | 440 cm | 2 | 130.3 / 309.7 | 128 cm |
+| 4 | 500 cm | 3 | 100.5 / 250 / 399.5 | 128 cm |
+| 5 | 620 cm | 3 | 130.5 / 310 / 489.5 | 128 cm |
 
-Cửa rộng 98 cm; vùng chạm = cửa + pad 2 bên (mặc định 45 cm, tự co khi hẹp — xem `app.js`).
+Cửa rộng 98 cm. **Quy tắc bố trí: khe hở đều nhau** — mọi khoảng trống trên một tường
+(2 góc + giữa các cửa) bằng nhau: `khe = (rộng − n×98) / (n+1)`. Đúng công thức mà bản
+9 cửa đã dùng (nó ra 0.3/0.7 cho tường 3), nên chỉ cần đổi `n` là ra layout mới.
+Khoảng cách tâm-tâm nhỏ nhất là **149.5 cm** (tường 4) > 128 cm nên zone không bao giờ chồng.
+Vùng chạm nội bộ của app = cửa + pad 2 bên (tối đa 45 cm, `app.js` tự co) — chỉ dùng cho
+đường `/touch` dự phòng; đường zone của bridge mới là đường thật.
 
 ## 10. File chính
 - `src/app.js` — main: dẫn xuất px/mét từ walls, scene, camera, **render loop + 5 NDI crop**, OSC/zone handler, HUD.
@@ -363,7 +375,7 @@ Mục đích: **thấy zone của bridge có nằm đúng ô cửa không** mà 
 
 ---
 
-## 15. PRESET LIDAR ĐÃ SINH SẴN (2026-08-08) — 9 zone, chưa chạy thật
+## 15. PRESET LIDAR ĐÃ SINH SẴN — 12 zone (cập nhật 2026-08-09), chưa chạy thật
 
 **File:** `Very Final - door-portals.json` — nằm ở **`/Volumes/Danh/`** (ổ ngoài) và bản copy ở
 **`~/Downloads/`**. Sinh ra từ file mapping của chủ dự án (`Very Final.json`, đã căn warp + chụp
@@ -373,7 +385,7 @@ nền xong nhưng `zones` rỗng).
 IP, poses, ndiCfg, out, smoothing, placement đều nguyên vẹn — đã diff kiểm):
 1. `oscPrefix`: `wall1..5` → **`tuong1..5`** (app lọc bằng `^/tuong(\d+)/zone/cua(\d+)$`, để `wall`
    là rớt sạch gói). Đổi ở bridge nên **không phải build lại app**.
-2. `zones`: `[]` → **9 vùng**, tên `cua1`/`cua2`, **rộng 128 cm** (ô cửa 98 + 15 cm mỗi bên),
+2. `zones`: `[]` → **12 vùng** (1/3/2/3/3), tên `cua1..cua3`, **rộng 128 cm** (ô cửa 98 + 15 cm mỗi bên),
    **cao 30–185 cm**, xoay theo đúng độ nghiêng sàn đo được của từng sensor.
 3. `warp.corners`: vẽ lại thành hình chữ nhật tường thật (đáy trên đường sàn đo từ baseline, cao
    2.40 m) để khung `/zonecal` ở Shift+M vẽ đúng chỗ.
@@ -411,6 +423,64 @@ nghĩa là coi sensor ở giữa tường. Muốn đổi bề rộng zone thì s
 **Ghi chú thêm:** `out.host` trong preset vẫn là `127.0.0.1` — chỉ đúng nếu bridge chạy **cùng máy**
 với Door Portals. Preset có `fusionActive: true` nên **load file xong bridge tự connect cả 5 sensor**
 (`renderer.js` cuối hàm `__applyPreset`), baseline cũng tự nạp lại, không phải chụp nền lại.
+
+---
+
+## 17. 12 CỬA + BIỂN TÊN KHÁCH (2026-08-09)
+
+**Layout:** 1 / 3 / 2 / 3 / 3 = **12 cửa**, khe hở đều nhau mỗi tường (bảng ở mục 9).
+Sửa duy nhất ở `config.json → walls[].doors`; mét, hit-zone, crop NDI, glow sàn đều tự suy ra.
+
+**Biển tên:** `config.json → doorNames` — mảng 12 chuỗi, thứ tự **trái→phải, tường 1→5**.
+Hiện tại: AEON · RALU KANZA CINDY · SANA ROO · ZAM LEVA AMANDEEP · UMER AEINA JP.
+(Nguồn: danh sách attendee của chủ dự án; *Umzi* bị gạch nên bỏ.) Thiếu tên → cửa đó
+không có biển, không lỗi. Đổi tên chỉ cần sửa config + khởi động lại, không phải build lại.
+- Dựng ở `src/door.js` (`nameplateTexture` + khối `if (this.name)` trong `_build`).
+- **Bảng gỗ dùng CHÍNH `frameMat` của cửa đó** → tự khớp gỗ/tông của cả 9 palette cửa.
+  Canvas chỉ vẽ **phần khắc** (rãnh viền + chữ nhũ vàng) trên nền trong suốt, đè lên bảng.
+  ⚠️ Đừng quay lại kiểu vẽ nguyên tấm ván nâu bằng canvas — cửa có 9 màu, tấm ván tự vẽ
+  chỉ hợp đúng 1 màu, phần còn lại chỏi.
+- Biển nằm **hoàn toàn phía trên ô cửa** (y ≈ 1.96–2.18 m trên tường 2.40 m) nên không
+  bao giờ che video. Cao 0.22 m ⇒ **99 px** trên tường thật, chữ ~52 px, đọc thoải mái.
+- Phím dev mở cửa giờ là `1..9` rồi `0` `-` `=` cho cửa 10/11/12.
+
+**⚠️ LÁ CHE VIDEO — 3 thủ phạm, đã sửa hết (đừng dựng lại kiểu cũ):**
+1. `environment.js` **dải cỏ tiền cảnh** (`grass-bed-1`, z=2.6) cao tới y=0.85 → che **nửa dưới
+   mọi ô cửa**. Đã **hạ y −0.10 → −0.52**, chỉ còn ngọn cỏ ~0.43 m làm viền chân cửa.
+2. `environment.js` **2 hàng cỏ khóm trước** (z=0.4 và z=2.6) mọc ngẫu nhiên khắp tường.
+   Giờ `freeX()` từ chối mọi vị trí rơi vào cột cửa.
+3. `environment.js` **`makeTrees` — nhánh lá rủ**, z=+3.8, rộng ~2.8 m, rủ gần chạm sàn.
+   Với 12 cửa **không còn khe nào đủ rộng** để đặt ở tiền cảnh → đã **đẩy ra sau cửa (z=−2.4)**.
+   Vẫn thấy lá trong khe giữa các cửa, còn khung cửa đục thì che nó đi sạch.
+4. `decor.js` khóm hoa chân cửa: trước neo theo **tâm** (`spotX` cố định) nên khóm rộng
+   thò vào tới x=0.12 — giờ neo theo **mép trong** (`OUTSIDE_X + w/2`), và z hạ 0.5→0.16.
+   Ivy mép cửa cũng dời ra ngoài mép khung.
+
+**🔑 Bẫy hình học quan trọng nhất (dễ mắc lại):** camera là **ống kính dài 60 m** nhìn một
+panorama **rộng 23 m**. Vật ở z>0 bị **đẩy ngang** trên màn hình theo
+`x_hiện = (x − W/2)·CAM_D/(CAM_D − z) + W/2`. Ở z=3.5, hai đầu phòng bị đẩy tới **0.7 m**.
+→ Trồng cây "cạnh cửa" theo toạ độ THẾ GIỚI vẫn có thể rơi trúng ô cửa trên màn hình.
+Mọi kiểm tra "có che cửa không" **phải làm trên toạ độ chiếu**, và phải cộng cả **nửa bề
+ngang** của chính vật đó. `makeGrass(count, W, doorXs, clearR, camD)` đã làm đúng vậy.
+
+**⚠️ CÒN NỢ — sàn phải render lại:** `floor/` đọc `config.json → walls[].doors` để đặt 9 vùng
+sáng ấm ở chân cửa. File đã giao (`~/Downloads/DOOR-PORTALS-FLOOR/floor.mov`) vẫn là **9 vùng
+ở vị trí cũ**. Chạy lại: `./node_modules/.bin/electron floor/main.js --dur 60 --fps 30 --name floor`
+(~4.5 phút, **foreground**, xong `ffprobe` kiểm `nb_frames=1800` — xem mục 11b).
+
+**⚡ TƯƠNG TÁC ĐỔI SANG "CHẠM-ĐỂ-XEM" (2026-08-09):**
+Chạm **1 lần** → cửa mở, chiếu **hết** clip rồi **tự đóng**. Chạm lần nữa → clip khác.
+Buông tay không còn đóng cửa; chạm lại giữa chừng không có tác dụng.
+- `config.json → osc.zoneCloseOnRelease: false` (gói `0` của bridge bị bỏ qua).
+- `worlds.js`: video pool **`loop = false`** (trước là `true`) + `World.clipDone()`.
+  ⚠️ Bật lại `loop` là cửa **không bao giờ đóng** — không có điểm kết để chờ.
+- `door.js` state `overlay`: đóng khi `clipDone()` (có sàn 0.6 s chống đóng hụt).
+  Không có video (world procedural) → quay về `timing.overlayHold`;
+  `timing.overlayMaxHold` = **30 s** là lưới an toàn nếu clip treo.
+- Clip pool dài **8.4–16.3 s** nên một lượt xem ≈ 10–18 s kể cả mở/đóng.
+  Đổi bộ clip dài hơn thì phải nâng `overlayMaxHold` cho hơn clip dài nhất.
+
+**Preset LiDAR đã sinh lại 12 zone** — xem mục 15.
 
 ---
 

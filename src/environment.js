@@ -174,16 +174,42 @@ function swayInjector(uniforms) {
 // Lush continuous meadow foreground: two overlapping AI grass-bed strips
 // (mirrored-repeat across all five walls, soft alpha, waving gently) with a
 // few sparse clump billboards breaking the repetition.
-export function makeGrass(count, W) {
+export function makeGrass(count, W, doorXs = [], clearR = 0.65, camD = 60) {
   const group = new THREE.Group();
   const uniforms = { uTime: { value: 0 } };
+
+  // Everything planted in FRONT of the door plane (z > 0) is painted OVER the
+  // world video once a door swings open. So the near foliage keeps clear of the
+  // doorways two ways: the continuous bed is sunk until only a low fringe shows
+  // above the floor line, and the clump rows refuse to spawn inside a door
+  // column (they crowd into the gaps between doors instead).
+  // (clearR comes from app.js as DOOR_W/2 + slack — passed in rather than
+  // imported so environment.js stays free of a door.js import cycle.)
+  // ⚠️ Compare the PROJECTED x, not the world x. The lens sits 60 m back but the
+  // panorama is 23 m wide, so a clump 3.5 m in front of the door plane is thrown
+  // up to 0.7 m sideways at the ends of the room — plant it "beside" a door in
+  // world space and it still lands on the doorway on screen.
+  const blocked = (x, z, halfW) => {
+    const px = (x - W / 2) * (camD / (camD - z)) + W / 2;
+    return doorXs.some(dx => Math.abs(px - dx) < clearR + halfW);
+  };
+  const freeX = (z, halfW) => {
+    for (let i = 0; i < 40; i++) {
+      const x = Math.random() * W;
+      if (!blocked(x, z, halfW)) return x;
+    }
+    return Math.random() * W;                    // pathological config — give up
+  };
 
   // --- continuous beds
   const beds = [
     // far bed: shorter, lighter, behind the doors
     { path: 'assets/textures/grass-bed-2.png', h: 0.62, y: -0.03, z: -1.9, tint: 0xbfc6da, tiles: 3.4, amp: 0.018 },
-    // near bed: taller, darker, in front of the doors
-    { path: 'assets/textures/grass-bed-1.png', h: 0.95, y: -0.10, z: 2.6, tint: 0xffffff, tiles: 2.6, amp: 0.03 }
+    // near bed: taller, darker, in front of the doors — SUNK so only the blade
+    // tips clear the floor line (top ~0.25 m of a 2.40 m wall). It used to reach
+    // y=0.85 and cover the bottom half of every doorway. It is a continuous
+    // strip, so it cannot dodge the door columns — only sinking works.
+    { path: 'assets/textures/grass-bed-1.png', h: 0.95, y: -0.70, z: 2.6, tint: 0xffffff, tiles: 2.6, amp: 0.03 }
   ];
   for (const b of beds) {
     const tex = loadTex(b.path);
@@ -252,14 +278,17 @@ export function makeGrass(count, W) {
     for (let i = 0; i < n; i++) {
       // Three depth rows → a full layered meadow band
       const row = Math.random();
-      let z, y, hBase;
-      if (row < 0.4) { z = 2.6 + Math.random() * 0.9; y = -0.12; hBase = 0.55; }
-      else if (row < 0.75) { z = 0.4 + Math.random() * 0.9; y = -0.07; hBase = 0.45; }
-      else { z = -2.3 + Math.random() * 0.9; y = -0.04; hBase = 0.36; }
-      p.set(Math.random() * W, y, z);
+      let z, y, hBase, front;
+      if (row < 0.4) { z = 2.6 + Math.random() * 0.9; y = -0.12; hBase = 0.55; front = true; }
+      else if (row < 0.75) { z = 0.4 + Math.random() * 0.9; y = -0.07; hBase = 0.45; front = true; }
+      else { z = -2.3 + Math.random() * 0.9; y = -0.04; hBase = 0.36; front = false; }
+      const h = hBase + Math.random() * 0.35;
+      // the two near rows sit in front of the portals — keep them (their whole
+      // width, not just their centre) out of the door columns; the back row is
+      // behind the doors and may stand anywhere
+      p.set(front ? freeX(z, v.aspect * h / 2) : Math.random() * W, y, z);
       e.set(0, (Math.random() - 0.5) * 0.7, (Math.random() - 0.5) * 0.06);
       q.setFromEuler(e);
-      const h = hBase + Math.random() * 0.35;
       s.set(h * (Math.random() < 0.5 ? -1 : 1), h, 1);
       m.compose(p, q, s);
       mesh.setMatrixAt(i, m);
@@ -493,7 +522,12 @@ export function makeTrees(W, H) {
     const mesh = new THREE.Mesh(geo, mat);
     const s = 1.15 + Math.random() * 0.8;
     mesh.scale.set(s * (Math.random() < 0.5 ? -1 : 1), s, 1);
-    mesh.position.set(f * W + (Math.random() - 0.5) * 0.6, H + 0.12, 3.8);
+    // BEHIND the doors (z<0). These drape ~2.8 m wide and hang almost to the
+    // floor; with 12 doors there is no gap on the wall wide enough to hold one
+    // in the foreground, so at z=+3.8 they simply painted over whichever world
+    // video was playing. Behind the door plane they still lace the canopy in
+    // the gaps and the opaque frames occlude them cleanly.
+    mesh.position.set(f * W + (Math.random() - 0.5) * 0.6, H + 0.12, -2.4);
     items.push({ mesh, ph: Math.random() * Math.PI * 2, base: (Math.random() - 0.5) * 0.06 });
     group.add(mesh);
   }

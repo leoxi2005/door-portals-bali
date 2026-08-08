@@ -88,7 +88,7 @@ export function initDebugOverlays({ gl, camera, walls, doors, H, osc }) {
     `   4. Chạm thử  → cửa đúng nháy trắng & mở ra\n` +
     `\n` +
     `<b>PHÍM TẮT</b>   G=hướng dẫn · O=OSC monitor · Shift+M=bản đồ tường\n` +
-    `              1-9=mở cửa · H=HUD · M=tắt tiếng`;
+    `              1-9 0 - ==mở cửa · H=HUD · M=tắt tiếng`;
   document.body.appendChild(guide);
 
   // ============================================================= OSC MONITOR

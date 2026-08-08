@@ -1,7 +1,7 @@
 # Door Portals
 
 Cài đặt tương tác **touch-wall LiDAR → 5 tường NDI** cho phòng pentagon (Bali).
-Chạm một ô cửa trên tường → cửa mở ra, chiếu một "mảnh đời sống" ngẫu nhiên → buông tay → cửa đóng. Electron + Three.js, OSC In (zone), NDI Out (5 luồng).
+Chạm một ô cửa trên tường → cửa mở ra, chiếu hết một "mảnh đời sống" ngẫu nhiên rồi tự đóng. Electron + Three.js, OSC In (zone), NDI Out (5 luồng).
 
 ## Tải về (Download)
 
@@ -22,7 +22,7 @@ Chạy file `Setup .exe` để cài rồi mở như app bình thường — **kh
 
 ## Hướng dẫn sử dụng
 
-Chạm một ô cửa trên tường → cửa **mở** ra, chiếu một clip "mảnh đời sống" ngẫu nhiên → **giữ tay** thì cửa mở tiếp, **buông tay** thì cửa đóng ("giữ để xem"). Mỗi tường có (các) cửa riêng, mở độc lập.
+Chạm một ô cửa trên tường → cửa **mở** ra và chiếu **hết** một clip "mảnh đời sống" ngẫu nhiên, chiếu xong **tự đóng**. Chạm lần nữa → mở lại với clip khác. Buông tay không đóng cửa. Mỗi tường có các cửa riêng, mở độc lập.
 
 ### Phím tắt vận hành (chỉ hiện trên màn hình, KHÔNG lọt vào luồng NDI)
 
@@ -58,7 +58,7 @@ Mỗi khi một ô cửa **có người chạm / hết người chạm**, bridge
 Địa chỉ:  /tuongN/zone/cuaM
 Kiểu:     1 số nguyên (int32)
 Giá trị:  1  = đang chạm  → MỞ cửa (giữ mở khi còn chạm)
-          0  = buông tay  → ĐÓNG cửa ngay
+          0  = buông tay  → (bỏ qua, cửa tự đóng khi hết clip)
 ```
 
 - `N` = số thứ tự **tường** (1..5), `M` = số thứ tự **cửa trong tường đó** (1..2).
@@ -229,7 +229,7 @@ Sau đó trong app bấm **Shift+M** → thấy khung zone chồng lên cửa: *
 |------|---------|
 | `port` | Cổng UDP nghe zone (mặc định `7000`) |
 | `zoneRule` | Regex khớp địa chỉ → tường/cửa |
-| `zoneCloseOnRelease` | `true` = buông tay đóng ngay ("giữ để xem"). `false` = tự phát hết rồi đóng |
+| `zoneCloseOnRelease` | `false` (**đang dùng**) = chạm 1 lần, chiếu hết clip rồi tự đóng. `true` = buông tay đóng ngay |
 | `zones` | Bản đồ địa chỉ → cửa thủ công (khi không dùng zoneRule) |
 
 > Dự phòng: vẫn giữ đường cũ `/touch x y` per-wall (cổng 9001–9005) nếu bridge dùng toạ độ thô thay vì zone.

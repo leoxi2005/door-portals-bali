@@ -271,15 +271,24 @@ export function addDoorDecor(parent, index) {
   }
 
   // --- ivy trails at the frame EDGES only; they part away when the door opens
+  // OUTSIDE_X: half the authored door width (0.90 m in this 1.7 m-tall space)
+  // plus a margin. Nothing hung in front of the portal may reach inside it —
+  // the strands used to start at x=0.32 and hang straight across the video.
+  // Margin also absorbs the long lens: anything at z>0 is thrown sideways by
+  // z/CAM_D of its distance from the room centre — up to ~9 cm for these at the
+  // ends of the 23 m panorama, which is why they are kept close to z=0 too.
+  const OUTSIDE_X = 0.45 + 0.09;
   const ivyMap = tex('assets/textures/decor/ivy-strand.png');
-  const edgeXs = [-0.42, -0.32, 0.34, 0.44];
-  for (const bx of edgeXs) {
+  const edgeOff = [-0.14, 0.0, 0.0, 0.14];   // second strand tucked further out
+  for (let i = 0; i < 4; i++) {
     if (rng() < 0.45) continue;
-    const h = 0.5 + rng() * 0.5;
+    const side = i < 2 ? -1 : 1;
+    const h = 0.4 + rng() * 0.35;
     const w = h * IVY_AR * (1.0 + rng() * 0.4);
     const op = 0.85;
+    const bx = side * (OUTSIDE_X + w / 2 + Math.abs(edgeOff[i]));
     const m = billboard(ivyMap, w, h, {
-      x: bx + (rng() - 0.5) * 0.06, y: AUTH_H / 2 - 0.02, z: 0.1, pivot: 'top',
+      x: bx + (rng() - 0.5) * 0.04, y: AUTH_H / 2 - 0.02, z: 0.1, pivot: 'top',
       flip: rng() < 0.5 ? -1 : 1, opacity: op, tint: coolTint(rng, 0.5, 0.62)
     });
     m.rotation.z = (rng() - 0.5) * 0.1;
@@ -293,19 +302,24 @@ export function addDoorDecor(parent, index) {
   // threshold without covering the door face / the world video when it opens.
   const bushMap = tex('assets/textures/decor/bush-flowers.png');
   const groundY = -AUTH_H / 2 + 0.02;
-  const spotX = [-0.74, -0.5, 0.5, 0.74];
+  const outward = [0.0, 0.24, 0.0, 0.24];            // inner + outer clump per side
   const nBush = 4;
   for (let i = 0; i < nBush; i++) {
-    const bx = spotX[i] + (rng() - 0.5) * 0.12;
     const w = (0.5 + rng() * 0.26), h = w / BUSH_AR;   // low band, doesn't climb the door
+    // Anchored by INNER EDGE, not centre: whatever width it draws, the clump
+    // starts outside the doorway. (Fixed centres let a wide clump reach in to
+    // x=0.12 and sit over the bottom of the video.)
+    const side = i < 2 ? -1 : 1;
+    const bx = side * (OUTSIDE_X + w / 2 + outward[i] + rng() * 0.06);
     const op = 0.98;
     const m = billboard(bushMap, w, h, {
-      x: bx, y: groundY - 0.02, z: 0.5 + rng() * 0.3, pivot: 'bottom',
+      x: bx, y: groundY - 0.02, z: 0.16 + rng() * 0.2, pivot: 'bottom',
       flip: rng() < 0.5 ? -1 : 1, opacity: op, tint: coolTint(rng, 0.56, 0.74)
     });
     group.add(m);
     swayers.push({ mesh: m, base: 0, amp: 0.012 + rng() * 0.01, freq: 0.45 + rng() * 0.25, ph: rng() * 6.28 });
-    openables.push({ mesh: m, base: op, fade: 0.85 }); // fade well clear when the door opens
+    // clear of the opening now, so they only dim a touch instead of vanishing
+    openables.push({ mesh: m, base: op, fade: 0.3 });
   }
 
   // --- warm door-spill glow on the near trunks -----------------------------
