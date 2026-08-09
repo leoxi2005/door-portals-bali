@@ -1,6 +1,6 @@
 {
   "name": "door-portals",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "DOOR PORTALS — LiDAR touch-wall interactive: 3 cửa thần kỳ mở ra thế giới khác. Electron + Three.js, NDI Out, OSC In.",
   "main": "main.js",
   "author": "LEOXI",

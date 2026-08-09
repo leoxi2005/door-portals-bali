@@ -13,13 +13,16 @@
 > Đọc `HANDOFF.md` ở thư mục này để nắm toàn bộ context dự án Door Portals (touch-wall LiDAR → 5 tường NDI, phòng pentagon Bali). Đây **đã là git repo** trên GitHub `leoxi2005/door-portals-bali` (public, `gh` đã login `leoxi2005`). **TUÂN THỦ quy tắc tiết kiệm credit (mục 12):** không tự chụp screenshot; muốn xem kết quả thì `SNAP_DIR=<dir> RENDER_SCALE=0.5 npm start` (lưu snap1..3.png giây 8/11/15) → downscale → chỉ đưa 1 ảnh khi cần quyết định; gộp nhiều chỉnh vào 1 lần rồi mới render. Chỉ đọc thêm file cụ thể khi cần cho việc đang làm (đừng đọc lại toàn bộ). Xác nhận đã nắm context rồi mình nói việc tiếp.
 
 **Trạng thái hiện tại:**
-- **Bản phát hành mới nhất: `v1.0.8`** (2026-08-08) → https://github.com/leoxi2005/door-portals-bali/releases/tag/v1.0.8
-  Đủ 3 file: `.dmg` (macOS ARM) + `Setup .exe` + `-win.zip` (Windows, CI build OK).
+- **Bản phát hành mới nhất: `v1.0.9`** (2026-08-09) → https://github.com/leoxi2005/door-portals-bali/releases/tag/v1.0.9
+  Bản 12 cửa + biển tên + chạm-để-xem. CI Windows đính `Setup .exe` + `-win.zip`.
+  ⚠️ **Chưa build `.dmg` macOS cho 1.0.9** — cần thì `npm run build:mac` rồi
+  `gh release upload v1.0.9 "release/Door Portals-1.0.9-arm64.dmg"`.
+  (v1.0.8 — bản 9 cửa — vẫn còn trên trang releases nếu cần lùi.)
 - App LiDAR Bridge (Hokuyo, dự án riêng): **v5.8**, giao thức zone + `/zonecal` đã chốt.
 - **Preset LiDAR đã sinh sẵn, chưa ai chạy thật:** xem mục **15**.
 - **2026-08-09: 12 cửa + biển tên khách + tương tác chạm-để-xem** — xem mục **17**.
   Code đã xong & đã render kiểm; preset LiDAR 12 zone đã sinh; **sàn đã render lại cho 12 cửa**.
-  Còn lại: **chưa bump version, chưa build, chưa phát hành.**
+  Đã phát hành **v1.0.9** (chỉ Windows; macOS .dmg chưa build).
 
 **⚠️ VIỆC ON-SITE CÒN NỢ — theo thứ tự ưu tiên:**
 1. **Chốt đường xuất NDI nào nhanh hơn trên máy show.** Chạy 1.0.8 hai lần rồi so
