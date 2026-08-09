@@ -18,8 +18,8 @@
 - App LiDAR Bridge (Hokuyo, dự án riêng): **v5.8**, giao thức zone + `/zonecal` đã chốt.
 - **Preset LiDAR đã sinh sẵn, chưa ai chạy thật:** xem mục **15**.
 - **2026-08-09: 12 cửa + biển tên khách + tương tác chạm-để-xem** — xem mục **17**.
-  Code đã xong & đã render kiểm; **chưa bump version, chưa build, chưa phát hành.**
-  Sàn `floor/` phải **render lại** cho khớp 12 cửa (mục 17).
+  Code đã xong & đã render kiểm; preset LiDAR 12 zone đã sinh; **sàn đã render lại cho 12 cửa**.
+  Còn lại: **chưa bump version, chưa build, chưa phát hành.**
 
 **⚠️ VIỆC ON-SITE CÒN NỢ — theo thứ tự ưu tiên:**
 1. **Chốt đường xuất NDI nào nhanh hơn trên máy show.** Chạy 1.0.8 hai lần rồi so
@@ -463,10 +463,19 @@ panorama **rộng 23 m**. Vật ở z>0 bị **đẩy ngang** trên màn hình t
 Mọi kiểm tra "có che cửa không" **phải làm trên toạ độ chiếu**, và phải cộng cả **nửa bề
 ngang** của chính vật đó. `makeGrass(count, W, doorXs, clearR, camD)` đã làm đúng vậy.
 
-**⚠️ CÒN NỢ — sàn phải render lại:** `floor/` đọc `config.json → walls[].doors` để đặt 9 vùng
-sáng ấm ở chân cửa. File đã giao (`~/Downloads/DOOR-PORTALS-FLOOR/floor.mov`) vẫn là **9 vùng
-ở vị trí cũ**. Chạy lại: `./node_modules/.bin/electron floor/main.js --dur 60 --fps 30 --name floor`
-(~4.5 phút, **foreground**, xong `ffprobe` kiểm `nb_frames=1800` — xem mục 11b).
+**✅ SÀN ĐÃ RENDER LẠI CHO 12 CỬA (2026-08-09).** File giao mới ở
+`~/Downloads/DOOR-PORTALS-FLOOR/`: `floor.mov` (ProRes 6.9 GB) + `floor.mp4` (443 MB) +
+`calib-1.png` — cả 3 là 3840×2160 / 30 fps / **1800 frame** (đã `ffprobe` xác nhận).
+Bản 9 cửa giữ lại cạnh đó tên `floor-9cua-CU.mov` / `calib-1-9cua-CU.png` (xoá được nếu cần chỗ).
+Render mất 4 phút 22 (7.3 fps).
+- **Trần số cửa của sàn đã nâng 9 → 12.** Mảng uniform GLSL cần cỡ hằng số nên không suy
+  được từ `config.json` lúc chạy: **`#define NDOOR 12` trong `floor/shaders.js`** là nguồn
+  duy nhất, `floor/render.js` đọc lại qua `FloorShaders.NDOOR` và cảnh báo ra log nếu
+  `config.json` có nhiều cửa hơn. Thêm cửa nữa → sửa đúng con số đó.
+- ⚠️ **Ô cửa thừa phải đẩy ra xa** (`DOORM.fill(1e3)`): `0,0` là **giữa phòng**, để nguyên
+  là mọc một đốm sáng ấm ngay giữa sàn không ai gọi.
+- `floor/calib.js` trước suy số hiệu zone bằng `frac < 0.5 ? 1 : 2` — **sai từ 3 cửa/tường
+  trở lên**. Nay đếm theo thứ tự cửa trên chính tường đó (`cua1..cua3`).
 
 **⚡ TƯƠNG TÁC ĐỔI SANG "CHẠM-ĐỂ-XEM" (2026-08-09):**
 Chạm **1 lần** → cửa mở, chiếu **hết** clip rồi **tự đóng**. Chạm lần nữa → clip khác.

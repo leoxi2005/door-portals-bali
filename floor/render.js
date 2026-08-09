@@ -140,10 +140,17 @@
   const fOut = fbo(P.W, P.H, gl.RGBA8, gl.UNSIGNED_BYTE);
   const vaoQuad = gl.createVertexArray();
 
-  // 9 chân cửa (mét) cho đèn cửa
-  const DOORM = new Float32Array(18), DOORPH = new Float32Array(9);
+  // chân cửa (mét) cho đèn cửa — số lượng theo config.json, trần là NDOOR
+  const NDOOR = S.NDOOR;
+  const DOORM = new Float32Array(NDOOR * 2), DOORPH = new Float32Array(NDOOR);
+  // Ô chưa dùng phải nằm THẬT XA: 0,0 là giữa phòng, để nguyên là mọc một đốm
+  // sáng ấm ngay giữa sàn không ai gọi.
+  DOORM.fill(1e3);
+  if (geo.doors.length > NDOOR) {
+    log(`⚠️ ${geo.doors.length} cửa nhưng shader chỉ thắp ${NDOOR} — nâng NDOOR trong floor/shaders.js`);
+  }
   geo.doors.forEach((d, i) => {
-    if (i >= 9) return;
+    if (i >= NDOOR) return;
     DOORM[i * 2] = d.p[0] + d.n[0] * 0.30;
     DOORM[i * 2 + 1] = d.p[1] + d.n[1] * 0.30;
     DOORPH[i] = (i * 0.37) % 1;

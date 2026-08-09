@@ -59,8 +59,13 @@ uniform sampler2D uTexA;     // nền rừng rêu (nhìn từ trên)
 uniform sampler2D uTexB;     // đồng cỏ bạc
 uniform float uRing;
 uniform float uEmit;
-uniform vec2  uDoor[9];
-uniform float uDoorPh[9];
+/* Số cửa tối đa mà sàn thắp sáng. PHẢI >= số cửa trong config.json (hiện 12).
+   Mảng uniform GLSL cần cỡ HẰNG SỐ nên không suy được từ config lúc chạy — thêm
+   cửa thì sửa đúng con số này, render.js đọc lại qua FloorShaders.NDOOR. Ô thừa
+   được render.js đẩy ra xa (1e3 m) nên không tự sinh đốm sáng ở giữa phòng. */
+#define NDOOR 12
+uniform vec2  uDoor[NDOOR];
+uniform float uDoorPh[NDOOR];
 
 mat2 rot2(float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c); }
 
@@ -75,10 +80,10 @@ vec3 ground(sampler2D T, vec2 p, float sc, float rotA){
   return texture(T, rot2(rotA + gWA) * (p/sc + gWO)).rgb;
 }
 
-/* 9 lối mòn (cỏ rạp) */
+/* lối mòn (cỏ rạp) — một lối cho mỗi cửa */
 float paths(vec2 p, float ring){
   float best = 0.0;
-  for(int i=0;i<9;i++){
+  for(int i=0;i<NDOOR;i++){
     vec2 D = uDoor[i];
     float L = max(0.001, length(D));
     vec2 dir = -D/L, per = vec2(-dir.y, dir.x);
@@ -147,9 +152,9 @@ void main(){
   col += moonC * pow(max(dot(N, normalize(Lmoon + vec3(0,0,1))), 0.0), 26.0) * 0.10*(0.4+0.6*moonPatch);
   col *= mix(vec3(0.78,0.86,1.05), vec3(1.0), moonPatch);    // vùng tối ngả lam
 
-  /* ---- 9 VÙNG SÁNG ẤM TỪ CHÂN CỬA ---- */
+  /* ---- VÙNG SÁNG ẤM TỪ CHÂN CỬA (một vùng mỗi cửa) ---- */
   vec3 doorLit = vec3(0.0); float doorGlow = 0.0;
-  for(int i=0;i<9;i++){
+  for(int i=0;i<NDOOR;i++){
     vec2 dv = uDoor[i] - m;
     float dd = length(dv);
     float att = exp(-dd*0.85) * (0.66 + 0.34*sin(TAU*(uT + uDoorPh[i])));
@@ -267,5 +272,5 @@ void main(){
   outColor = vec4(max(c, 0.0), 1.0);
 }`;
 
-  global.FloorShaders = { VS_QUAD, FS_SCENE, VS_FLY, FS_FLY, FS_BRIGHT, FS_BLUR, FS_COMP };
+  global.FloorShaders = { NDOOR: 12, VS_QUAD, FS_SCENE, VS_FLY, FS_FLY, FS_BRIGHT, FS_BLUR, FS_COMP };
 })(window);

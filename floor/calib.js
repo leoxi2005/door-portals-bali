@@ -65,6 +65,7 @@
     x.fillText('TƯỜNG ' + (i + 1) + ' — ' + walls[i].wcm + ' cm', q[0], q[1]);
   });
 
+  const cuaIdx = {};   // đếm cửa theo từng tường: cua1, cua2, cua3...
   geo.doors.forEach((d, i) => {
     const half = 0.49; // cửa rộng 98 cm
     const a = px([d.p[0] - d.t[0] * half, d.p[1] - d.t[1] * half]);
@@ -74,8 +75,10 @@
     const inw = px([d.p[0] + d.n[0] * 0.42, d.p[1] + d.n[1] * 0.42]);
     x.fillStyle = '#ff8a8a';
     x.font = (34 * k | 0) + 'px -apple-system, Helvetica, sans-serif';
-    const cua = d.frac < 0.5 ? 1 : 2;
-    x.fillText('/tuong' + d.wall + '/zone/cua' + (walls[d.wall - 1].doors.length === 1 ? 1 : cua), inw[0], inw[1]);
+    // Số hiệu zone = thứ tự cửa TRÊN TƯỜNG ĐÓ (geo.doors đi lần lượt tường 1→5,
+    // trái→phải). Cách cũ suy từ frac<0.5 chỉ đúng khi mỗi tường có tối đa 2 cửa.
+    cuaIdx[d.wall] = (cuaIdx[d.wall] || 0) + 1;
+    x.fillText('/tuong' + d.wall + '/zone/cua' + cuaIdx[d.wall], inw[0], inw[1]);
   });
 
   // thông tin
